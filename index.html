@@ -259,6 +259,11 @@ textarea{resize:vertical;min-height:64px}
 .day.today .n{background:var(--koi);color:var(--koi-ink);border-radius:50%;width:24px;height:24px;line-height:24px}
 .day[aria-pressed="true"]{border-color:var(--ink)}
 .day .dots{display:flex;gap:3px}
+#view-cal .day{position:relative}
+.day .trip{position:absolute;left:-2px;right:-2px;height:4px;opacity:.9}
+.day .trip.s{left:6px;border-radius:4px 0 0 4px}.day .trip.e{right:6px;border-radius:0 4px 4px 0}.day .trip.s.e{border-radius:4px}
+.evt-days{display:inline-block;font-size:11px;font-weight:700;color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+.evt-range{font-size:12px;color:var(--muted);margin-top:2px}
 .day{aspect-ratio:auto;min-height:84px;padding-inline:2px;padding-top:8px;gap:5px;min-width:0;overflow:hidden;font-size:16px;border-radius:14px}
 .day.today .n{width:28px;height:28px;line-height:28px}
 #view-cal .grid{gap:3px}
@@ -483,6 +488,12 @@ const HATS=[{id:'none',n:'不戴',lv:0},{id:'cap',n:'棒球帽',lv:0},{id:'beani
 const ACCS=[{id:'none',n:'不戴',lv:0},{id:'blush',n:'腮紅',lv:0},{id:'bow',n:'蝴蝶結',lv:0},{id:'glasses',n:'眼鏡',lv:1},{id:'scarf',n:'圍巾',lv:2}];
 const STICKERS=['👍','😋','🥺','🍖','🍜','🐟','💤','🎉','😂','🤣','😭','😍','🥰','😎','🤔','😴','😤','🙄','😱','🫠','🙏','👏','💪','❤️','💔','🔥','✨','🍺','🍰','🫶'];
 const RS={yes:'會到',maybe:'不確定',no:'不會到'};
+const evEnd=e=>e.endDate&&e.endDate>e.date?e.endDate:e.date;
+const isMulti=e=>evEnd(e)!==e.date;
+const onDay=(e,ds)=>e.date<=ds&&ds<=evEnd(e);
+const dayCount=e=>Math.round((parseD(evEnd(e))-parseD(e.date))/864e5)+1;
+const tStr=t=>t&&t!=='--'?t:'';
+function whenText(e){if(!isMulti(e))return `${fmtDate(e.date)} ${e.allDay?'整天':e.time}`;return `${fmtDate(e.date)}${e.allDay?'':' '+e.time} → ${fmtDate(evEnd(e))}${e.allDay||!e.endTime?'':' '+e.endTime}（${dayCount(e)} 天）`}
 const FEED_LIMIT=5;
 
 function seed(){
@@ -507,7 +518,8 @@ function seed(){
     E('e5',2,'20:00','腿日','健身房',['max','lily'],{max:'yes'}),
     E('e6',5,'14:00','KTV 歡唱','西門町',['kai','wen','tiger'],{wen:'yes'}),
     E('e7',9,'11:00','週末野餐','大稻埕碼頭',['lily','pei','wen','wang'],{}),
-    E('e8',13,'19:30','桌遊夜','桌遊店',['kai','kevin','max'],{kai:'yes'})
+    E('e8',13,'19:30','桌遊夜','桌遊店',['kai','kevin','max'],{kai:'yes'}),
+    Object.assign(E('e9',16,'08:30','東京五天四夜','東京',['kai','wen'],{kai:'yes',wen:'maybe'}),{endDate:addDays(TODAY,20),endTime:'21:00'})
   ];
   ['KAI-0314','WEN-0802','TIGER-1120','KEVIN-0105','PEI-0618','WANG-0930','MAX-0422','LILY-1209'].forEach((c,i)=>fish[i].code=c);
   return {
@@ -545,7 +557,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.2.0';
+const APP_VER='v1.3.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1427,17 +1439,17 @@ function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAtt
   $('calTitle').textContent=`${calY} 年 ${calM+1} 月`;
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
   for(let i=0;i<first.getDay();i++)html+='<div class="day blank"></div>';
-  for(let d=1;d<=days;d++){const ds=ymd(new Date(calY,calM,d));const ev=D.events.filter(e=>e.date===ds);
+  for(let d=1;d<=days;d++){const ds=ymd(new Date(calY,calM,d));const ev=D.events.filter(e=>onDay(e,ds));
     const ps=[...new Set(ev.flatMap(e=>e.ppl.flatMap(id=>pondsOf(fishById(id)))))].map(pondById).filter(Boolean),MK=R.calMark||'pill';let mark='',st='';
     if(ev.length&&ps.length){if(MK==='dot')mark=`<span class="dots">${ps.slice(0,3).map(p=>`<span class="dot" style="background:${p.color};width:9px;height:9px"></span>`).join('')}</span>`;
       if(MK==='pill')mark=`<span class="pills">${ps.slice(0,2).map(p=>`<span class="pill" style="background:${p.color}">${esc(p.name.replace(/池$/,'').slice(0,2))}</span>`).join('')}${ps.length>2?`<span class="pill more">+${ps.length-2}</span>`:''}</span>`;
       if(MK==='fish')mark=`<span class="fishes">${ps.slice(0,3).map(p=>`<svg viewBox="0 0 20 12" width="19" height="11" aria-hidden="true"><path d="M3 6 L0 1 L0 11Z" fill="${p.color}"/><ellipse cx="11" cy="6" rx="8" ry="5" fill="${p.color}"/><circle cx="15" cy="5" r="1.3" fill="#fff"/></svg>`).join('')}</span>${ev.length>1?`<span class="cnt">${ev.length} 個約</span>`:''}`;
       if(MK==='fill'){st=`style="background:linear-gradient(135deg,${ps.map((p,k)=>`${hexA(p.color,.34)} ${k/ps.length*100}% ${(k+1)/ps.length*100}%`).join(',')});border-color:${ps[0].color}"`;mark=`<span class="cnt solid" style="background:${ps[0].color}">${ev.length}</span>`}}
-    html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${mark}</button>`}
+    html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${mark}${ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=pondById(pondsOf(fishById(e.ppl[0]))[0])?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join('')}</button>`}
   $('calGrid').innerHTML=html;
   $('agendaTitle').textContent=fmtDate(selDay)+(selDay===TODAY?' · 今天':'');
   $('addEvt').hidden=!isAdmin();
-  const ev=D.events.filter(e=>e.date===selDay).sort((a,b)=>a.time.localeCompare(b.time));
+  const ev=D.events.filter(e=>onDay(e,selDay)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   $('agenda').innerHTML=ev.length?ev.map(evtCard).join(''):`<div class="empty">這天沒有約，魚塘很安靜。${isAdmin()?'<br>點「新增行程」約一條魚吧。':''}</div>`;
 }
 function evtCard(e){
@@ -1450,7 +1462,7 @@ function evtCard(e){
     actions+=`<div class="evt-actions"><button class="btn ghost small" data-edit="${e.id}">編輯</button>${!e.done&&e.date<=TODAY?`<button class="btn small" data-done="${e.id}">完成赴約</button>`:''}${e.done?'<span class="done-pill">已赴約 ✓</span>':''}</div>`;
   }else if(e.done)actions+='<span class="done-pill">已赴約 ✓</span>';
   const note=isAdmin()&&D.notes[e.id]?`<div class="secret"><b>私人備註</b><span>${esc(D.notes[e.id])}</span></div>`:'';
-  return `<article class="evt" style="--band:${band};background:linear-gradient(180deg,${PS[0]?hexA(PS[0].color,.1):'transparent'},transparent 60%),var(--surface)"><div class="evt-band" aria-hidden="true"></div><div class="evt-top"><div class="evt-time" style="color:${PS[0]?.color||'inherit'}">${e.time}</div><div style="min-width:0"><div class="evt-title">${esc(e.title)}</div><div class="evt-loc">${esc(e.loc||'地點未定')}</div><div class="ptags">${ponds}</div></div></div><div class="ppl">${ppl}</div>${note}${actions}</article>`;
+  return `<article class="evt" style="--band:${band};background:linear-gradient(180deg,${PS[0]?hexA(PS[0].color,.1):'transparent'},transparent 60%),var(--surface)"><div class="evt-band" aria-hidden="true"></div><div class="evt-top"><div class="evt-time" style="color:${PS[0]?.color||'inherit'}">${isMulti(e)?(selDay===e.date?(e.allDay?'出發':e.time):selDay===evEnd(e)?(e.allDay||!e.endTime?'回程':e.endTime):'整天'):(e.allDay?'整天':e.time)}</div><div style="min-width:0"><div class="evt-title">${esc(e.title)}${isMulti(e)?`<span class="evt-days" style="background:${PS[0]?.color||'var(--koi)'}">第 ${Math.round((parseD(selDay)-parseD(e.date))/864e5)+1} / ${dayCount(e)} 天</span>`:''}</div>${isMulti(e)?`<div class="evt-range">${esc(whenText(e))}</div>`:''}<div class="evt-loc">${esc(e.loc||'地點未定')}</div><div class="ptags">${ponds}</div></div></div><div class="ppl">${ppl}</div>${note}${actions}</article>`;
 }
 
 function renderStats(){
@@ -1625,7 +1637,7 @@ function drawThumbs(f){document.querySelectorAll('[data-thumb]').forEach(cv=>{co
 function dressChanged(){save();renderPond();if(view==='dex')renderDex()}
 function closeSheet(){$('scrim').hidden=true;liveEdit=false;$('scrim').classList.remove('peek');previews=[];$('sheet').innerHTML=''}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeSheet()});
-document.addEventListener('change',e=>{const t=e.target;if(t.name==='fPpl')document.querySelectorAll(`input[name=fPpl][value="${t.value}"]`).forEach(y=>y.checked=t.checked)});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='fMulti'){$('fEndRow').hidden=!t.checked;if(t.checked&&!$('fEndDate').value)$('fEndDate').value=$('fDate').value}if(t.id==='fAllDay'){$('fTimeWrap').hidden=t.checked;$('fEndTimeWrap').hidden=t.checked}if(t.id==='fDate'&&$('fEndDate')){$('fEndDate').min=t.value;if($('fEndDate').value&&$('fEndDate').value<t.value)$('fEndDate').value=t.value}if(t.name==='fPpl')document.querySelectorAll(`input[name=fPpl][value="${t.value}"]`).forEach(y=>y.checked=t.checked)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('scrim').hidden)closeSheet()});
 const head=t=>`<div class="sheet-h"><h2>${t}</h2><button class="x" data-close aria-label="關閉">✕</button></div>`;
 
@@ -1658,7 +1670,9 @@ function openEventForm(id){
   const e=id?D.events.find(x=>x.id===id):{date:selDay,time:'19:00',title:'',loc:'',ppl:[]};
   openSheet(`${head(id?'編輯行程':'新增行程')}
     <div class="field"><span>要做什麼</span><input type="text" id="fTitle" maxlength="40" value="${esc(e.title)}" placeholder="例如：下班吃火鍋"></div>
-    <div class="row"><div class="field" style="flex:1"><span>日期</span><input type="date" id="fDate" value="${e.date}"></div><div class="field" style="flex:1"><span>時間</span><input type="time" id="fTime" value="${e.time}"></div></div>
+    <div class="row"><div class="field" style="flex:1"><span>${isMulti(e)?'出發日期':'日期'}</span><input type="date" id="fDate" value="${e.date}"></div><div class="field" style="flex:1" id="fTimeWrap" ${e.allDay?'hidden':''}><span>時間</span><input type="time" id="fTime" value="${e.time}"></div></div>
+    <div class="row" style="gap:14px;flex-wrap:wrap"><label class="check"><input type="checkbox" id="fMulti" ${isMulti(e)?'checked':''}>多天行程（例如出國）</label><label class="check"><input type="checkbox" id="fAllDay" ${e.allDay?'checked':''}>不指定時間</label></div>
+    <div class="row" id="fEndRow" ${isMulti(e)?'':'hidden'}><div class="field" style="flex:1"><span>回來日期</span><input type="date" id="fEndDate" value="${isMulti(e)?evEnd(e):''}" min="${e.date}"></div><div class="field" style="flex:1" id="fEndTimeWrap" ${e.allDay?'hidden':''}><span>時間（選填）</span><input type="time" id="fEndTime" value="${e.endTime||''}"></div></div>
     <div class="field"><span>地點</span><input type="text" id="fLoc" maxlength="40" value="${esc(e.loc)}" placeholder="可以晚點再填"></div>
     <div class="field"><span>約哪些魚（可跨池）</span>${D.ponds.map(p=>`<div class="pick-pond"><div><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${fishIn(p.id).length?`<button type="button" class="selall" data-selpond="${p.id}">${fishIn(p.id).every(f=>e.ppl.includes(f.id))?'取消全選':'全選'}</button>`:''}</div><div class="opts">${fishIn(p.id).map(f=>`<label class="check"><input type="checkbox" name="fPpl" data-pp="${p.id}" value="${f.id}" ${e.ppl.includes(f.id)?'checked':''}><span class="dot" style="background:${f.color}"></span>${esc(f.name)}</label>`).join('')}</div></div>`).join('')}</div>
     <div class="field"><span>私人備註（只有你看得到）</span><textarea id="fNote" maxlength="200" placeholder="例如：記得帶他上次借的書">${esc(id?D.notes[id]||'':'')}</textarea></div>
@@ -1666,16 +1680,19 @@ function openEventForm(id){
     <div class="row mt"><button class="btn" style="flex:1" data-saveevt="${id||''}">${id?'儲存變更':'建立並通知被約的魚'}</button>${id?`<button class="btn danger" data-delevt="${id}">刪除</button>`:''}</div>`);
 }
 function saveEvent(id){
-  const title=$('fTitle').value.trim(),date=$('fDate').value,time=$('fTime').value||'00:00',loc=$('fLoc').value.trim(),note=$('fNote').value.trim();
+  const title=$('fTitle').value.trim(),date=$('fDate').value,allDay=$('fAllDay').checked,time=allDay?'00:00':($('fTime').value||'00:00'),loc=$('fLoc').value.trim(),note=$('fNote').value.trim();
+  const multi=$('fMulti').checked,endDate=multi?$('fEndDate').value:'',endTime=multi&&!allDay?$('fEndTime').value:'';
   const ppl=[...new Set([...document.querySelectorAll('input[name=fPpl]:checked')].map(i=>i.value))];
   const err=$('fErr');
   if(!title){err.textContent='請填寫要做什麼。';err.hidden=false;return}
   if(!date){err.textContent='請選日期。';err.hidden=false;return}
+  if(multi&&!endDate){err.textContent='請選回來的日期。';err.hidden=false;return}
+  if(multi&&endDate<date){err.textContent='回來日期不能早於出發日期。';err.hidden=false;return}
   if(!ppl.length){err.textContent='至少要約一條魚。';err.hidden=false;return}
   let e;
-  if(id){e=D.events.find(x=>x.id===id);const added=ppl.filter(p=>!e.ppl.includes(p));Object.assign(e,{title,date,time,loc,ppl});Object.keys(e.rsvp).forEach(k=>{if(!ppl.includes(k))delete e.rsvp[k]});
-    ppl.forEach(p=>notify(p,added.includes(p)?`與塘主有約：${title}，${fmtDate(date)} ${time}`:`行程有更新：${title}，${fmtDate(date)} ${time}`))}
-  else{e={id:'e'+Date.now(),title,date,time,loc,ppl,rsvp:{},done:false};D.events.push(e);ppl.forEach(p=>notify(p,`與塘主有約：${title}，${fmtDate(date)} ${time}`))}
+  if(id){e=D.events.find(x=>x.id===id);const added=ppl.filter(p=>!e.ppl.includes(p));Object.assign(e,{title,date,time,loc,ppl,allDay,endDate:multi&&endDate>date?endDate:'',endTime:multi&&endDate>date?endTime:''});Object.keys(e.rsvp).forEach(k=>{if(!ppl.includes(k))delete e.rsvp[k]});
+    ppl.forEach(p=>notify(p,added.includes(p)?`與塘主有約：${title}，${whenText(e)}`:`行程有更新：${title}，${whenText(e)}`))}
+  else{e={id:'e'+Date.now(),title,date,time,loc,ppl,rsvp:{},done:false,allDay,endDate:multi&&endDate>date?endDate:'',endTime:multi&&endDate>date?endTime:''};D.events.push(e);ppl.forEach(p=>notify(p,`與塘主有約：${title}，${whenText(e)}`))}
   if(note)D.notes[e.id]=note;else delete D.notes[e.id];
   selDay=date;const d=parseD(date);calY=d.getFullYear();calM=d.getMonth();
   save();closeSheet();renderAll();toast(id?'行程已更新':`已建立，通知了 ${ppl.length} 條魚`);
