@@ -154,6 +154,9 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .page .shade{position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 55%);opacity:0;animation:shade .7s forwards}
 @keyframes shade{50%{opacity:1}100%{opacity:0}}
 .pg-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cf-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}.cf-row .cf-k{flex:0 0 34%}.cf-row .cf-v{flex:1;min-width:0}
+.cf-del{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.cf-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.cf-presets .chip{padding:4px 10px;font-size:13px}
 .release{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
 .ribbons{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .ribbon{color:#fff;font-size:12px;font-weight:700;padding:3px 12px 3px 10px;border-radius:0 999px 999px 0;margin-left:-26px}
@@ -488,6 +491,9 @@ const HATS=[{id:'none',n:'不戴',lv:0},{id:'cap',n:'棒球帽',lv:0},{id:'beani
 const ACCS=[{id:'none',n:'不戴',lv:0},{id:'blush',n:'腮紅',lv:0},{id:'bow',n:'蝴蝶結',lv:0},{id:'glasses',n:'眼鏡',lv:1},{id:'scarf',n:'圍巾',lv:2}];
 const STICKERS=['👍','😋','🥺','🍖','🍜','🐟','💤','🎉','😂','🤣','😭','😍','🥰','😎','🤔','😴','😤','🙄','😱','🫠','🙏','👏','💪','❤️','💔','🔥','✨','🍺','🍰','🫶'];
 const RS={yes:'會到',maybe:'不確定',no:'不會到'};
+const CF_PRESETS=[['星座','例如 雙魚座'],['MBTI','例如 INFP'],['血型','例如 O 型'],['生肖','例如 屬兔'],['職業','例如 設計師'],['IG','例如 @fish_daily'],['興趣','例如 爬山'],['最愛的飲料','例如 珍奶半糖']];
+const cfRows=P=>(P.custom||[]).filter(c=>c.k).map(c=>`<dt>${esc(c.k)}</dt><dd>${esc(c.v)||'—'}</dd>`).join('');
+const cfRow=(k,v,ph)=>`<div class="cf-row"><input type="text" class="cf-k" maxlength="8" value="${esc(k)}" placeholder="欄位名稱" aria-label="欄位名稱"><input type="text" class="cf-v" maxlength="40" value="${esc(v)}" placeholder="${esc(ph||'內容')}" aria-label="內容"><button type="button" class="cf-del" data-cfdel aria-label="刪除這個欄位">✕</button></div>`;
 const evPonds=e=>{const v=e.via&&Object.keys(e.via).length?e.ppl.flatMap(id=>e.via[id]||[]):e.ppl.flatMap(id=>pondsOf(fishById(id)));return D.ponds.map(p=>p.id).filter(id=>v.includes(id))};
 const pickedIn=(e,fid,pid)=>e.ppl.includes(fid)&&(e.via&&Object.keys(e.via).length?(e.via[fid]||[]).includes(pid):true);
 const evEnd=e=>e.endDate&&e.endDate>e.date?e.endDate:e.date;
@@ -511,6 +517,7 @@ function seed(){
     F('lily','莉莉','gym','#FFD166','party','none',6,2,14,{bday:'12/09',likes:'瑜珈、手搖飲',dislikes:'早起',msg:'約我喝飲料嘛'})
   ];
   fish.find(f=>f.id==='tiger').ponds=['uni','gym'];
+  fish.find(f=>f.id==='kai').profile.custom=[{k:'星座',v:'雙魚座'},{k:'MBTI',v:'ENFP'}];
   const E=(id,d,time,title,loc,ppl,rsvp={},done=false)=>({id,date:addDays(TODAY,d),time,title,loc,ppl,rsvp,done});
   const events=[
     E('e1',-6,'19:00','週五燒肉','大安區 燒肉店',['kai','tiger','wen'],{kai:'yes',tiger:'yes',wen:'yes'},true),
@@ -559,7 +566,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.3.1';
+const APP_VER='v1.4.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1481,7 +1488,7 @@ function pageHTML(f,i,n){const p=pondById(f.pond),s=satiety(f),P=f.profile;
   <div class="pg-name"><h3>${esc(f.name)}</h3><span class="badge">${LEVELS[f.level]}</span>${canEvolve(f)?'<span class="badge">可進化</span>':''}</div>
   <div class="pg-meta">約過 ${f.meets} 次 · 上次見面 ${fmtDate(f.last)}（${daysSince(f)} 天前）</div>
   <div class="pg-sat"><span>飽足感</span><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div><b style="color:${satColor(s)}">${satLabel(s)}</b></div>
-  <dl class="prof pg-prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd><dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>
+  <dl class="prof pg-prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd>${cfRows(P)}<dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>
   <div class="pg-foot"><span class="row" style="gap:6px"><button class="btn ghost small" data-fish="${f.id}">小檔案</button>${canDress(f)?`<button class="btn small" data-wardrobe="${f.id}">換造型</button>`:''}</span><span class="pgno">${i+1} / ${n}</span></div>`}
 function drawBookCanvas(cv,f,t){if(!cv||!f)return;if(use3DPreview()){if(bookPrev&&bookPrev.cv===cv){if(!bookPrev.drag&&!(bookPrev.last&&performance.now()-bookPrev.last<1600))bookPrev.yaw+=.012}if(renderPV(cv,f,t,bookPrev&&bookPrev.cv===cv?bookPrev.yaw:-.5,4.2,bookPrev&&bookPrev.cv===cv?bookPrev.pitch:.3))return}
   const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);const S2=R.style2d||'classic',L=Math.min(w*.42,fishSize(f)*2.1),o={...fishOpts(f),phase:1};
@@ -1649,8 +1656,8 @@ function openFish(id,keepEdit){curFish=id;
   const nxt=f.level<4?NEED[f.level+1]-f.meets:0;
   const hist=D.events.filter(e=>e.done&&e.ppl.includes(f.id)).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   const P=f.profile;
-  const prof=editingProfile?`<div class="field"><span>生日</span><input type="text" id="pBday" value="${esc(P.bday)}" placeholder="例如 03/14"></div><div class="field"><span>喜好</span><input type="text" id="pLikes" value="${esc(P.likes)}"></div><div class="field"><span>忌口</span><input type="text" id="pDis" value="${esc(P.dislikes)}"></div><div class="field"><span>想對塘主說的話</span><textarea id="pMsg">${esc(P.msg)}</textarea></div><div class="row mt"><button class="btn" data-saveprof="${f.id}">儲存小檔案</button><button class="btn ghost" data-cancelprof="${f.id}">取消</button></div>`
-    :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd><dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>${canEdit(f)?`<button class="btn ghost small mt" data-editprof="${f.id}">編輯小檔案</button>`:''}`;
+  const prof=editingProfile?`<div class="field"><span>生日</span><input type="text" id="pBday" value="${esc(P.bday)}" placeholder="例如 03/14"></div><div class="field"><span>喜好</span><input type="text" id="pLikes" value="${esc(P.likes)}"></div><div class="field"><span>忌口</span><input type="text" id="pDis" value="${esc(P.dislikes)}"></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="field"><span>想對塘主說的話</span><textarea id="pMsg">${esc(P.msg)}</textarea></div><div class="row mt"><button class="btn" data-saveprof="${f.id}">儲存小檔案</button><button class="btn ghost" data-cancelprof="${f.id}">取消</button></div>`
+    :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd>${cfRows(P)}<dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>${canEdit(f)?`<button class="btn ghost small mt" data-editprof="${f.id}">編輯小檔案</button>`:''}`;
   const style=canDress(f)?`<button class="btn mt" style="width:100%" data-wardrobe="${f.id}">打開衣櫥換造型</button>`:'';
   openSheet(`${head(esc(f.name))}
     <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">${isAdmin()?'<span style="font-size:12px;color:var(--muted);width:100%">所在魚池（點一下加入或搬出）</span>':''}${isAdmin()?D.ponds.map(q=>`<button class="chip" style="padding:3px 10px;font-size:13px" data-fishpond="${f.id}:${q.id}" aria-pressed="${pondsOf(f).includes(q.id)}"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}${pondsOf(f).includes(q.id)?' ✓':''}</button>`).join(''):pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="chip" style="padding:3px 10px;font-size:13px"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}</span>`).join('')}<span class="badge">${LEVELS[f.level]}</span>${own?'<span class="badge">這是你</span>':''}</div>
@@ -1776,9 +1783,13 @@ document.addEventListener('click',ev=>{
   if(d.delevt){if(b.dataset.armed){D.events=D.events.filter(x=>x.id!==d.delevt);delete D.notes[d.delevt];save();closeSheet();renderAll();toast('行程已刪除')}else{b.dataset.armed='1';b.textContent='再點一次確定刪除'}return}
   if(d.evolve){promptEvolve(d.evolve);return}
   if(d.evoyes){const f=fishById(d.evoyes);f.level++;save();closeSheet();renderAll();toast(`${f.name} 長成「${LEVELS[f.level]}」了`);setTimeout(()=>openFish(f.id),300);return}
+  if('cfadd' in d){const L=$('cfList');if(!L)return;const k=d.cfadd;if(L.children.length>=12){toast('最多 12 個自訂欄位');return}
+    const ex=k&&[...L.querySelectorAll('.cf-k')].find(x=>x.value.trim()===k);if(ex){ex.parentElement.querySelector('.cf-v').focus();return}
+    L.insertAdjacentHTML('beforeend',cfRow(k,'',(CF_PRESETS.find(x=>x[0]===k)||[])[1]));const row=L.lastElementChild;(k?row.querySelector('.cf-v'):row.querySelector('.cf-k')).focus();return}
+  if('cfdel' in d){b.closest('.cf-row')?.remove();return}
   if(d.editprof){editingProfile=true;openFish(d.editprof,true);return}
   if(d.cancelprof){editingProfile=false;openFish(d.cancelprof,true);return}
-  if(d.saveprof){const f=fishById(d.saveprof);f.profile={bday:$('pBday').value.trim(),likes:$('pLikes').value.trim(),dislikes:$('pDis').value.trim(),msg:$('pMsg').value.trim()};
+  if(d.saveprof){const f=fishById(d.saveprof);const custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);f.profile={bday:$('pBday').value.trim(),likes:$('pLikes').value.trim(),dislikes:$('pDis').value.trim(),msg:$('pMsg').value.trim(),custom};
     if(!isAdmin()&&f.profile.msg)notify('admin',`${f.name} 更新了想對你說的話：${f.profile.msg}`);editingProfile=false;save();renderViewer();openFish(f.id,true);toast('小檔案已儲存');return}
   if(d.col||d.hat||d.acc){const f=me();if(!f)return;if(d.col)f.color=d.col;if(d.hat)f.hat=d.hat;if(d.acc)f.acc=d.acc;save();
     const sel=d.col?'[data-col]':d.hat?'[data-hat]':'[data-acc]';document.querySelectorAll(sel).forEach(x=>x.setAttribute('aria-pressed',x===b));renderPond();renderDex();return}
