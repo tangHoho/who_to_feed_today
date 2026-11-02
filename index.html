@@ -611,7 +611,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.10.2';
+const APP_VER='v1.10.3';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -628,7 +628,9 @@ const me=()=>isAdmin()?null:fishById(D.viewer);
 const nameOf=by=>by==='admin'?(D.owner==='我'?'塘主':'塘主 '+D.owner):(fishById(by)?.name||'已放生的魚');
 const eligible=m=>{let l=0;NEED.forEach((n,i)=>{if(m>=n)l=i});return l};
 const canEvolve=f=>f.level<4&&eligible(f.meets)>f.level;
-const daysSince=f=>Math.max(0,diffDays(f.last,TODAY));
+const lastMet=f=>{let m='';(D.events||[]).forEach(e=>{if(e.ppl&&e.ppl.includes(f.id)&&(e.rsvp||{})[f.id]!=='no'&&e.date<=TODAY&&e.date>m)m=e.date});return m};
+const daysSince=f=>{const lm=lastMet(f);return Math.max(0,diffDays(lm||f.joined||f.last||TODAY,TODAY))};
+const lastMetText=f=>{const lm=lastMet(f);return lm?`${fmtDate(lm)}（${daysSince(f)} 天前）`:'還沒約過'};
 const bonusToday=f=>{const b=D.feedBonus[f.id];return b&&b.date===TODAY?b.n:0};
 const satiety=f=>Math.max(5,Math.min(100,100-daysSince(f)*4+bonusToday(f)*2));
 const satLabel=s=>s>=70?'吃飽飽':s>=40?'有點餓':'快餓扁了';
@@ -1566,7 +1568,7 @@ function pageHTML(f,i,n,pid){const p=pondById(f.pond),s=satiety(f),P=f.profile;
   return `<div class="pg-top"><span class="ribbons">${[...pondsOf(f)].sort((x,y)=>(y===pid)-(x===pid)).map(pondById).filter(Boolean).map(q=>`<span class="ribbon" style="background:${q.color}">${esc(q.name)}</span>`).join('')}</span><span class="pgno">No.${String(i+1).padStart(3,'0')}</span></div>
   <div class="pg-art"><canvas class="bookcv" aria-label="${esc(f.name)} 的樣子"></canvas>${has3D?`<div class="seg mini hero-seg" role="group" aria-label="預覽方式"><button data-dexmode="2d" aria-pressed="${dexMode==='2d'}">2D</button><button data-dexmode="3d" aria-pressed="${dexMode==='3d'}">3D</button></div>`:''}</div>
   <div class="pg-name"><h3>${esc(f.name)}</h3><span class="badge">${LEVELS[f.level]}</span>${canEvolve(f)?'<span class="badge">可進化</span>':''}</div>
-  <div class="pg-meta">約過 ${f.meets} 次 · 上次見面 ${fmtDate(f.last)}（${daysSince(f)} 天前）</div>
+  <div class="pg-meta">約過 ${f.meets} 次 · 上次見面 ${lastMetText(f)}</div>
   <div class="pg-sat"><span>飽足感</span><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div><b style="color:${satColor(s)}">${satLabel(s)}</b></div>
   <dl class="prof pg-prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd>${cfRows(P)}<dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>
   ${isAdmin()?`<div class="inv-row"><span class="tiny" style="color:var(--muted)">邀請碼</span><span class="code">${f.code}</span><button class="btn ghost small" data-copy="${f.code}">複製邀請連結</button></div>`:''}<div class="pg-foot"><span class="row" style="gap:6px"><button class="btn ghost small" data-fish="${f.id}">小檔案</button>${canDress(f)?`<button class="btn small" data-wardrobe="${f.id}">換造型</button>`:''}</span><span class="pgno">${i+1} / ${n}</span></div>`}
@@ -1691,7 +1693,7 @@ function deletePond(id,b){if(onlyIn(id).length){toast('有魚只住在這個池�
   if(!b.dataset.armed){b.dataset.armed='1';b.textContent='再點一次確定刪除';return}
   const name=pondById(id).name;D.fish.forEach(f=>{if(pondsOf(f).includes(id)){f.ponds=pondsOf(f).filter(x=>x!==id);f.pond=f.ponds[0]}});D.ponds=D.ponds.filter(p=>p.id!==id);delete D.boards[id];pondSel=D.ponds[0].id;save();closeSheet();resetPond();renderAll();toast(`已刪除「${name}」`)}
 function openFishForm(){if(!D.ponds.length){toast('先新增一個魚池');return}openSheet(`${head('新增魚')}<div class="field"><span>朋友的名字</span><input type="text" id="nfName" maxlength="12" placeholder="例如：阿凱"></div><div class="field"><span>放進哪些魚池（可以同時在好幾個池）</span><div class="opts">${D.ponds.map(p=>`<label class="check"><input type="checkbox" name="nfPond" value="${p.id}" ${p.id===pondSel?'checked':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</label>`).join('')}</div></div><button class="btn mt" id="saveFish">放進魚池並產生邀請碼</button>`)}
-function saveFish(){const name=$('nfName').value.trim();if(!name){toast('請輸入朋友的名字');return}const ps=[...document.querySelectorAll('input[name=nfPond]:checked')].map(i=>i.value);if(!ps.length){toast('至少選一個魚池');return}const f={id:'x'+Date.now(),name,pond:ps[0],ponds:ps,color:COLORS[D.fish.length%COLORS.length],hat:'none',acc:'none',meets:0,level:0,last:TODAY,code:makeCode(name),profile:{bday:'',likes:'',dislikes:'',msg:''}};
+function saveFish(){const name=$('nfName').value.trim();if(!name){toast('請輸入朋友的名字');return}const ps=[...document.querySelectorAll('input[name=nfPond]:checked')].map(i=>i.value);if(!ps.length){toast('至少選一個魚池');return}const f={id:'x'+Date.now(),name,pond:ps[0],ponds:ps,joined:TODAY,color:COLORS[D.fish.length%COLORS.length],hat:'none',acc:'none',meets:0,level:0,last:TODAY,code:makeCode(name),profile:{bday:'',likes:'',dislikes:'',msg:''}};
   D.fish.push(f);const moved=!ps.includes(pondSel);if(moved)pondSel=f.pond;save();if(moved)resetPond();renderAll();if(mode3d)focusPond(pondSel);openSheet(`${head('魚放進去了')}<p>按「複製邀請連結」傳給 ${esc(name)}，他打開連結就會自動帶入邀請碼、直接進到魚池。也可以在首頁選「當魚」手動輸入邀請碼。</p><div class="row" style="align-items:center"><span class="code">${f.code}</span><button class="btn small" data-copy="${f.code}">複製邀請連結</button></div><button class="btn ghost mt" data-close>完成</button>`)}
 
 /* ---------- sheets ---------- */
@@ -1754,7 +1756,7 @@ function openFish(id,keepEdit){curFish=id;
     <div class="hero-wrap"><canvas class="hero-fish" id="heroFish" aria-label="${esc(f.name)} 的樣子"></canvas>${has3D?`<div class="seg mini hero-seg" role="group" aria-label="預覽方式"><button data-dexmode="2d" aria-pressed="${dexMode==='2d'}">2D</button><button data-dexmode="3d" aria-pressed="${dexMode==='3d'}">3D</button></div>`:''}</div>${use3DPreview()?'<p style="font-size:12px;color:var(--muted);text-align:center;margin:-6px 0 10px">左右拖曳可以轉一圈看看</p>':''}
     ${isAdmin()?`<div class="row" style="align-items:center;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:13px;color:var(--muted)">邀請碼</span><span class="code">${f.code}</span><button class="btn ghost small" data-copy="${f.code}">複製邀請連結</button></div>`:''}
     ${canEvolve(f)&&canEdit(f)?`<button class="btn" style="width:100%" data-evolve="${f.id}">可以進化了，登大人？</button>`:''}
-    <div class="stats"><div class="stat"><div class="k">飽足感</div><div class="v" style="color:${satColor(s)}">${s}% · ${satLabel(s)}</div><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div></div><div class="stat"><div class="k">上次見面</div><div class="v">${fmtDate(f.last)}</div><div class="k">${daysSince(f)} 天前</div></div><div class="stat"><div class="k">約過</div><div class="v">${f.meets} 次</div></div><div class="stat"><div class="k">下一級</div><div class="v">${f.level>=4?'已是魚王':nxt>0?`還差 ${nxt} 次`:'已達標'}</div></div></div>
+    <div class="stats"><div class="stat"><div class="k">飽足感</div><div class="v" style="color:${satColor(s)}">${s}% · ${satLabel(s)}</div><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div></div><div class="stat"><div class="k">上次見面</div><div class="v">${lastMet(f)?fmtDate(lastMet(f)):'還沒約過'}</div>${lastMet(f)?`<div class="k">${daysSince(f)} 天前</div>`:''}</div><div class="stat"><div class="k">約過</div><div class="v">${f.meets} 次</div></div><div class="stat"><div class="k">下一級</div><div class="v">${f.level>=4?'已是魚王':nxt>0?`還差 ${nxt} 次`:'已達標'}</div></div></div>
     <h2 class="sec">小檔案</h2>${prof}
     ${style}
     <h2 class="sec">最近的約</h2>${hist.length?hist.map(e=>`<div class="notif" style="padding:8px 0"><div><div>${esc(e.title)}</div><div class="when">${fmtDate(e.date)} · ${esc(e.loc)}</div></div></div>`).join(''):'<div class="empty">還沒有赴約紀錄</div>'}${isAdmin()?`<div class="release"><button class="btn danger" style="width:100%" data-release="${f.id}">把 ${esc(f.name)} 放生</button><p class="tiny" style="color:var(--muted);text-align:center">放生後會從所有魚池、行程和圖鑑移除，無法復原。</p></div>`:''}`);
