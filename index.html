@@ -158,6 +158,12 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .cf-del{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
 .cf-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.cf-presets .chip{padding:4px 10px;font-size:13px}
 .adm-hero{display:flex;align-items:center;gap:12px;margin:8px 0 4px}.adm-av{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#FFE29A,#F2B632);display:grid;place-items:center;font-size:28px;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.adm-av.photo,.av.photo{padding:0;overflow:hidden;background:var(--surface-2)}.adm-av.photo img,.av.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.av.admin{font-size:18px}
+.av-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.av-opt{height:44px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-size:22px;display:grid;place-items:center;cursor:pointer;overflow:hidden;padding:0}
+.av-opt[aria-pressed="true"]{border-color:var(--koi);box-shadow:0 0 0 2px color-mix(in srgb,var(--koi) 30%,transparent)}
+.av-opt img{width:100%;height:100%;object-fit:cover}
 .adm-name{font-family:var(--display);font-size:22px;font-weight:700}.adm-sub{font-size:13px;color:var(--muted)}
 .lb{display:flex;flex-direction:column;gap:6px}
 .lb-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px 10px;color:var(--ink)}
@@ -605,7 +611,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.9.3';
+const APP_VER='v1.10.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1467,7 +1473,7 @@ function renderPond(){
   const msgs=D.boards[pondSel]||[];
   renderStats();requestAnimationFrame(alignHud);
   if($('pondPanel').classList.contains('open'))markBoardSeen();const unr=boardUnread(pondSel);$('panelLabel').innerHTML=`${esc(pondById(pondSel)?.name||'')}${unr?` <span class="unread-pill">${unr} 則未讀</span>`:''}`;
-  $('board').innerHTML=msgs.length?msgs.map(m=>{const f=fishById(m.by);return `<div class="msg"><div class="av ${m.by==='admin'?'admin':''}" style="${f?`background:${f.color}`:''}">${m.by==='admin'?'主':esc(f?.name[0]||'?')}</div><div class="bubble"><div class="h"><b>${esc(nameOf(m.by))}</b>${ago(m.at)}</div>${m.sticker?`<div class="stk">${m.sticker}</div>`:`<div class="t">${esc(m.text)}</div>`}</div></div>`}).join(''):'<div class="empty">這個池子還沒有人說話</div>';
+  $('board').innerHTML=msgs.length?msgs.map(m=>{const f=fishById(m.by);return `<div class="msg">${m.by==='admin'?adminAvHTML('av admin'):`<div class="av" style="${f?`background:${f.color}`:''}">${esc(f?.name[0]||'?')}</div>`}<div class="bubble"><div class="h"><b>${esc(nameOf(m.by))}</b>${ago(m.at)}</div>${m.sticker?`<div class="stk">${m.sticker}</div>`:`<div class="t">${esc(m.text)}</div>`}</div></div>`}).join(''):'<div class="empty">這個池子還沒有人說話</div>';
   const mine=me();
   if(isAdmin()||pondsOf(mine).includes(pondSel)){
     $('composer').innerHTML=`<div class="composer mt"><div class="row"><input type="text" id="msgIn" maxlength="120" placeholder="${isAdmin()?'跟這池的魚說點什麼':'在這裡留言…'}" aria-label="留言內容"><button class="btn" id="msgSend">送出</button></div><div class="stickers" aria-label="貼圖">${STICKERS.map(s=>`<button data-stk="${s}" aria-label="傳送貼圖 ${s}">${s}</button>`).join('')}</div></div>`;
@@ -1527,6 +1533,8 @@ function evtCard(e){
 }
 
 const AP=()=>D.adminProfile||(D.adminProfile={nick:'',bday:'',intro:'',custom:[]});
+const AV_PRESETS=['👑','🎣','🐟','🐳','🦈','🐙','🦀','🐠','🌸','⭐','🍣','🐱','🐶','🦊','🐰','🍰'];
+const adminAvHTML=(cls='adm-av')=>{const v=AP().avatar||'👑';return /^data:image\//.test(v)?`<span class="${cls} photo" aria-hidden="true"><img src="${v}" alt=""></span>`:`<span class="${cls}" aria-hidden="true">${esc(v)}</span>`};
 const adminName=()=>AP().nick||(D.owner==='我'?'塘主':D.owner);
 function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
   const done=D.events.filter(e=>e.done&&!isPersonal(e)),month=done.filter(e=>e.date.slice(0,7)===TODAY.slice(0,7)).length,up=D.events.filter(e=>!e.done&&!isPersonal(e)&&evEnd(e)>=TODAY).length;
@@ -1534,13 +1542,16 @@ function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
   const rank=[...D.fish].sort((a,b)=>b.meets-a.meets||daysSince(a)-daysSince(b)).slice(0,10),mx=Math.max(1,...rank.map(f=>f.meets));
   const medal=i=>['🥇','🥈','🥉'][i]||`<span class="lb-n">${i+1}</span>`;
   const lb=rank.length?rank.map((f,i)=>`<button class="lb-row" data-fish="${f.id}"><span class="lb-rank">${medal(i)}</span><canvas class="lb-fish" data-lbfish="${f.id}" aria-hidden="true"></canvas><span class="lb-main"><span class="lb-name">${esc(f.name)}<span class="lb-ponds">${pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="dot" style="background:${q.color}"></span>`).join('')}</span></span><span class="lb-bar"><i style="width:${f.meets/mx*100}%;background:${pondById(f.pond)?.color||'var(--koi)'}"></i></span></span><span class="lb-cnt"><b>${f.meets}</b> 次</span></button>`).join(''):'<div class="empty">還沒有魚，先去新增幾條吧</div>';
-  const prof=edit?`<div class="field"><span>魚塘名稱</span><input type="text" id="aFarm" maxlength="20" value="${esc(D.name)}"></div><div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
+  const prof=edit?`<div class="field"><span>頭像</span><div class="av-pick">${AV_PRESETS.map(e=>`<button type="button" class="av-opt" data-adminav="${e}" aria-pressed="${(P.avatar||'👑')===e}">${e}</button>`).join('')}<label class="av-opt av-up" aria-pressed="${/^data:/.test(P.avatar||'')}">${/^data:/.test(P.avatar||'')?`<img src="${P.avatar}" alt="">`:'📷'}<input type="file" id="avFile" accept="image/*" hidden></label></div><p class="tiny" style="color:var(--muted)">可以選一個圖示，或點相機上傳自己的照片（會自動裁成正方形）</p></div><div class="field"><span>魚塘名稱</span><input type="text" id="aFarm" maxlength="20" value="${esc(D.name)}"></div><div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
     :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>自我介紹</dt><dd>${esc(P.intro)||'（還沒寫）'}</dd>${cfRows(P)}</dl>${own?`<button class="btn ghost small mt" data-editadmin>編輯塘主資料</button>`:''}`;
-  openSheet(`${head('塘主資料')}<div class="adm-hero"><span class="adm-av" aria-hidden="true">👑</span><div><div class="adm-name">${esc(adminName())}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
+  openSheet(`${head('塘主資料')}<div class="adm-hero">${adminAvHTML()}<div><div class="adm-name">${esc(adminName())}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
     <div class="stats"><div class="stat"><div class="k">累計赴約</div><div class="v">${done.length} 場</div></div><div class="stat"><div class="k">本月赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">即將到來</div><div class="v">${up} 個約</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div></div>
     <h2 class="sec">約最多的魚</h2><div class="lb">${lb}</div>
     <h2 class="sec">關於塘主</h2>${prof}`);
   document.querySelectorAll('[data-lbfish]').forEach(cv=>{const f=fishById(cv.dataset.lbfish);if(!f)return;const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);drawFish(ctx,w/2,h/2+1,Math.min(w*.62,30),{...fishOpts(f),phase:1},0,1)})}
+function refreshAdminAv(){const h=document.querySelector('.adm-hero .adm-av');if(h)h.outerHTML=adminAvHTML();renderPond&&renderBoardOnly()}
+function renderBoardOnly(){try{if(view==='pond')renderPond()}catch(e){}}
+function loadAvatarFile(file){if(!file||!/^image\//.test(file.type)){toast('請選一張圖片');return}const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const S=256,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),m=Math.min(img.width,img.height);x.fillStyle='#FFF4EC';x.fillRect(0,0,S,S);x.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);AP().avatar=c.toDataURL('image/jpeg',.85);save();document.querySelectorAll('.av-opt').forEach(o=>o.setAttribute('aria-pressed','false'));const up=document.querySelector('.av-up');if(up){up.setAttribute('aria-pressed','true');up.innerHTML=`<img src="${AP().avatar}" alt=""><input type="file" id="avFile" accept="image/*" hidden>`}refreshAdminAv();toast('頭像已更新')};img.onerror=()=>toast('這張圖讀不出來，換一張試試');img.src=rd.result};rd.readAsDataURL(file)}
 function saveAdmin(){const P=AP();const fn=$('aFarm').value.trim();if(fn)D.name=fn;P.nick=$('aNick').value.trim();P.bday=$('aBday').value.trim();P.intro=$('aIntro').value.trim();P.custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);save();renderViewer();openAdmin(false);toast('塘主資料已儲存')}
 function renderStats(){
   const met=D.fish.filter(f=>f.meets>0),most=[...met].sort((a,b)=>b.meets-a.meets)[0],far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
@@ -1723,7 +1734,7 @@ function drawThumbs(f){document.querySelectorAll('[data-thumb]').forEach(cv=>{co
 function dressChanged(){save();renderPond();if(view==='dex')renderDex()}
 function closeSheet(){$('scrim').hidden=true;liveEdit=false;$('scrim').classList.remove('peek');previews=[];$('sheet').innerHTML=''}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeSheet()});
-document.addEventListener('change',e=>{const t=e.target;if(t.id==='fMulti'){$('fEndRow').hidden=!t.checked;if(t.checked&&!$('fEndDate').value)$('fEndDate').value=$('fDate').value}if(t.id==='fAllDay'){$('fTimeWrap').hidden=t.checked;$('fEndTimeWrap').hidden=t.checked}if(t.id==='fDate'&&$('fEndDate')){$('fEndDate').min=t.value;if($('fEndDate').value&&$('fEndDate').value<t.value)$('fEndDate').value=t.value}if(t.name==='fPpl'){const pp=t.dataset.pp,bs=[...document.querySelectorAll(`input[data-pp="${pp}"]`)],sb=document.querySelector(`[data-selpond="${pp}"]`);if(sb)sb.textContent=bs.every(x=>x.checked)?'取消全選':'全選'}});
+document.addEventListener('change',e=>{const t=e.target;if(t.id==='avFile'){loadAvatarFile(t.files&&t.files[0]);return}if(t.id==='fMulti'){$('fEndRow').hidden=!t.checked;if(t.checked&&!$('fEndDate').value)$('fEndDate').value=$('fDate').value}if(t.id==='fAllDay'){$('fTimeWrap').hidden=t.checked;$('fEndTimeWrap').hidden=t.checked}if(t.id==='fDate'&&$('fEndDate')){$('fEndDate').min=t.value;if($('fEndDate').value&&$('fEndDate').value<t.value)$('fEndDate').value=t.value}if(t.name==='fPpl'){const pp=t.dataset.pp,bs=[...document.querySelectorAll(`input[data-pp="${pp}"]`)],sb=document.querySelector(`[data-selpond="${pp}"]`);if(sb)sb.textContent=bs.every(x=>x.checked)?'取消全選':'全選'}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('scrim').hidden)closeSheet()});
 const head=t=>`<div class="sheet-h"><h2>${t}</h2><button class="x" data-close aria-label="關閉">✕</button></div>`;
 
@@ -1817,6 +1828,7 @@ document.addEventListener('click',ev=>{
   if(d.editadmin!==undefined&&'editadmin' in d){openAdmin(true);return}
   if('canceladmin' in d){openAdmin(false);return}
   if('saveadmin' in d){saveAdmin();return}
+  if(d.adminav){AP().avatar=d.adminav;save();document.querySelectorAll('.av-opt').forEach(x=>x.setAttribute('aria-pressed',x.dataset.adminav===d.adminav));const up=document.querySelector('.av-up');if(up)up.innerHTML='📷<input type="file" id="avFile" accept="image/*" hidden>';refreshAdminAv();return}
   if(b.id==='cloudLogin'){Cloud.google();return}
   if(b.id==='cloudLogout'){Cloud.logout();return}
   if(b.id==='cloudSync'){Cloud.pull(true);return}
