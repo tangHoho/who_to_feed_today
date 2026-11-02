@@ -576,7 +576,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.5.0';
+const APP_VER='v1.5.1';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1707,7 +1707,7 @@ function openEventForm(id){
   openSheet(`${head(id?'編輯行程':'新增行程')}
     <div class="field"><span>要做什麼</span><input type="text" id="fTitle" maxlength="40" value="${esc(e.title)}" placeholder="例如：下班吃火鍋"></div>
     <div class="row"><div class="field" style="flex:1"><span>${isMulti(e)?'出發日期':'日期'}</span><input type="date" id="fDate" value="${e.date}"></div><div class="field" style="flex:1" id="fTimeWrap" ${e.allDay?'hidden':''}><span>時間</span><input type="time" id="fTime" value="${e.time}"></div></div>
-    <div class="row" style="gap:14px;flex-wrap:wrap"><label class="check"><input type="checkbox" id="fMulti" ${isMulti(e)?'checked':''}>多天行程（例如出國）</label><label class="check"><input type="checkbox" id="fAllDay" ${e.allDay?'checked':''}>不指定時間</label></div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;margin:12px 0 6px"><label class="check"><input type="checkbox" id="fMulti" ${isMulti(e)?'checked':''}>多天行程（例如出國）</label><label class="check"><input type="checkbox" id="fAllDay" ${e.allDay?'checked':''}>不指定時間</label></div>
     <div class="row" id="fEndRow" ${isMulti(e)?'':'hidden'}><div class="field" style="flex:1"><span>回來日期</span><input type="date" id="fEndDate" value="${isMulti(e)?evEnd(e):''}" min="${e.date}"></div><div class="field" style="flex:1" id="fEndTimeWrap" ${e.allDay?'hidden':''}><span>時間（選填）</span><input type="time" id="fEndTime" value="${e.endTime||''}"></div></div>
     <div class="field"><span>地點</span><input type="text" id="fLoc" maxlength="40" value="${esc(e.loc)}" placeholder="可以晚點再填"></div>
     <div class="field"><span>約哪些魚（可跨池）</span>${D.ponds.map(p=>`<div class="pick-pond"><div><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${fishIn(p.id).length?`<button type="button" class="selall" data-selpond="${p.id}">${fishIn(p.id).every(f=>pickedIn(e,f.id,p.id))?'取消全選':'全選'}</button>`:''}</div><div class="opts">${fishIn(p.id).map(f=>`<label class="check"><input type="checkbox" name="fPpl" data-pp="${p.id}" value="${f.id}" ${pickedIn(e,f.id,p.id)?'checked':''}><span class="dot" style="background:${f.color}"></span>${esc(f.name)}</label>`).join('')}</div></div>`).join('')}</div>
