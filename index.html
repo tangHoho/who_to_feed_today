@@ -154,7 +154,10 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .page .shade{position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 55%);opacity:0;animation:shade .7s forwards}
 @keyframes shade{50%{opacity:1}100%{opacity:0}}
 .pg-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ribbons{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .ribbon{color:#fff;font-size:12px;font-weight:700;padding:3px 12px 3px 10px;border-radius:0 999px 999px 0;margin-left:-26px}
+.chip[data-fishpond][aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:700}
+.chip[data-fishpond][aria-pressed="false"]{opacity:.65}
 .pgno{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);letter-spacing:.06em;font-variant-numeric:tabular-nums}
 .pg-art{position:relative;border-radius:16px;background:linear-gradient(var(--water-top),var(--water-bot));overflow:hidden}
 .pg-art .bookcv{display:block;width:100%;height:180px;object-fit:cover}
@@ -493,6 +496,7 @@ function seed(){
     F('max','Max教練','gym','#F25F5C','none','scarf',9,2,3,{bday:'04/22',likes:'雞胸肉、深蹲',dislikes:'藉口',msg:'腿日不准翹'}),
     F('lily','莉莉','gym','#FFD166','party','none',6,2,14,{bday:'12/09',likes:'瑜珈、手搖飲',dislikes:'早起',msg:'約我喝飲料嘛'})
   ];
+  fish.find(f=>f.id==='tiger').ponds=['uni','gym'];
   const E=(id,d,time,title,loc,ppl,rsvp={},done=false)=>({id,date:addDays(TODAY,d),time,title,loc,ppl,rsvp,done});
   const events=[
     E('e1',-6,'19:00','週五燒肉','大安區 燒肉店',['kai','tiger','wen'],{kai:'yes',tiger:'yes',wen:'yes'},true),
@@ -537,10 +541,10 @@ function seedOther(){
 function seedRoot(){return {v:2,farms:{demo:seed(),wenfarm:seedOther()},joined:[{farm:'demo',viewer:'admin'},{farm:'wenfarm',viewer:'me'}],cur:null}}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s&&s.v===2?s:null}catch(e){return null}}
 let R=load()||seedRoot();
-Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}}));
+Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.0.0';
+const APP_VER='v1.1.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -548,7 +552,8 @@ function makeCode(name){const base=(name.replace(/[^A-Za-z]/g,'').toUpperCase().
 
 const fishById=id=>D.fish.find(f=>f.id===id);
 const pondById=id=>D.ponds.find(p=>p.id===id);
-const fishIn=pid=>D.fish.filter(f=>f.pond===pid);
+const pondsOf=f=>f?(f.ponds&&f.ponds.length?f.ponds:[f.pond]):[];
+const fishIn=pid=>D.fish.filter(f=>pondsOf(f).includes(pid));
 const isAdmin=()=>D.viewer==='admin';
 function boardUnread(pid){const seen=((D.boardSeen||{})[D.viewer]||{})[pid]||'';return (D.boards[pid]||[]).filter(m=>m.by!==D.viewer&&m.at>seen).length}
 function markBoardSeen(){D.boardSeen=D.boardSeen||{};const v=D.boardSeen[D.viewer]=D.boardSeen[D.viewer]||{};const ms=D.boards[pondSel]||[];const last=ms.reduce((a,m)=>m.at>a?m.at:a,v[pondSel]||'');if(last&&last!==v[pondSel]){v[pondSel]=last;save()}}
@@ -565,7 +570,7 @@ const thinOf=f=>.6+.4*satiety(f)/100;
 const fishSize=f=>34+f.level*8;
 const canEdit=f=>isAdmin()||D.viewer===f.id;
 const canDress=f=>isAdmin()||D.viewer===f.id;
-const canStylePond=pid=>isAdmin()||me()?.pond===pid;
+const canStylePond=pid=>isAdmin()||pondsOf(me()).includes(pid);
 
 function notify(key,text){(D.notifs[key]=D.notifs[key]||[]).unshift({text,at:new Date().toISOString(),read:false})}
 
@@ -845,8 +850,8 @@ function poke(fid,px,py){const f=fishById(fid);if(!f)return;const now=performanc
   if(kind==='talk'||Math.random()<.3){if(f.profile?.msg&&Math.random()<.4)text=f.profile.msg;else if(canEvolve(f))text='我可以登大人了！';else if(sat<40)text=pick(HUNGRY_LINES);else text=pick(POKE_LINES)}
   const react={kind,t0:now,dur:{jump:1.1,spin:.9,dash:.9,love:1,talk:.7}[kind]},say={text,until:now+2.6};
   const e2=sim.ents[fid];if(e2){e2.react=react;e2.say=say;if(kind==='dash'){const a=Math.random()*6.28;e2.tx=e2.x+Math.cos(a)*220;e2.ty=e2.y+Math.sin(a)*140;e2.next=now+1.2}if(kind==='love')for(let k=0;k<3;k++)sim.fx.push({x:e2.x+(k-1)*16,y:e2.y-24-k*6,life:1+k*.15})}
-  const e3=W3.fish&&W3.fish[fid];if(e3){e3.react=react;e3.say=say;if(kind==='dash'&&W3.layout){const a=Math.random()*6.28,c=W3.layout[e3.pid];e3.tx=c.x+Math.cos(a)*(POND_R-2);e3.tz=c.z+Math.sin(a)*(POND_R-2);e3.next=now+1.4}if(kind==='jump'){e3.vx=e3.vz=0}
-    if(kind==='love'&&W3.el)for(let k=0;k<3;k++)setTimeout(()=>{const [sx,sy]=place(document.createElement('i'),e3.x,.4,e3.z,W3.el.clientWidth,W3.el.clientHeight);heartFx(sx+(k-1)*16,sy)},k*180)}
+  Object.values(W3.fish||{}).filter(x=>x.fid===fid).forEach(e3=>{e3.react=react;e3.say=say;if(kind==='dash'&&W3.layout){const a=Math.random()*6.28,c=W3.layout[e3.pid];e3.tx=c.x+Math.cos(a)*(POND_R-2);e3.tz=c.z+Math.sin(a)*(POND_R-2);e3.next=now+1.4}if(kind==='jump'){e3.vx=e3.vz=0}
+    if(kind==='love'&&W3.el&&e3.pid===pondSel)for(let k=0;k<3;k++)setTimeout(()=>{const [sx,sy]=place(document.createElement('i'),e3.x,.4,e3.z,W3.el.clientWidth,W3.el.clientHeight);heartFx(sx+(k-1)*16,sy)},k*180)})
   pokeState={fid,until:now+4};$('pokeName').textContent=`${f.name} · ${LEVELS[f.level]}`;const pc=$('pokeCard');pc.hidden=false;const W=pc.parentElement.clientWidth;pc.style.transform=`translate(${Math.max(90,Math.min(W-90,px||W/2))}px,${(py||200)+34}px) translate(-50%,0)`;
   try{navigator.vibrate&&navigator.vibrate(12)}catch(_){}
   if(D.viewer!==fid){const key=D.viewer+'>'+fid;if(!pokeLog[key]||Date.now()-pokeLog[key]>60000){pokeLog[key]=Date.now();notify(fid,`${isAdmin()?'塘主':me()?.name} 戳了你一下`);save()}}}
@@ -1224,17 +1229,16 @@ function fxTick(g,t){const [sx,sy]=g.userData.dims||[1,.6];
     if(kind==='rp'){const p=(t*.25+k/8)%1;m.position.set((1.1-p*2.4)*sx+Math.sin(t*2+k)*.1,sy+1.1-p*2,Math.cos(t+k)*.5);m.rotation.set(t*2+k,t+k,0);m.material.opacity=Math.min(1,(1-p)*2)}
     if(kind==='rd'){const p=(t*1.2+k/3)%1;m.position.set(q.cx-.12+k*.12,q.cy-p*.6,0);m.material.opacity=1-p}
   })}
-const sigOf=f=>[f.expr,f.eyes,f.mouth,f.pond,f.color,f.hat,f.acc,f.cloth,f.fx,f.pattern,f.shape,f.level,Math.round(thinOf(f)*10)].join('|');
+const sigOf=f=>[f.expr,f.eyes,f.mouth,f.color,f.hat,f.acc,f.cloth,f.fx,f.pattern,f.shape,f.level,Math.round(thinOf(f)*10)].join('|');
 function sync3D(){
   if(!W3.ok)return;buildWorld();const L=W3.layout;
-  for(const id in W3.fish){const e=W3.fish[id],f=fishById(id);if(!f||e.sig!==sigOf(f)){W3.world.remove(e.g);e.g.traverse(o=>{if(o.geometry)o.geometry.dispose()});if(!f){e.lbl.remove();delete W3.fish[id]}else e.dead=true}}
-  D.fish.forEach(f=>{if(!L[f.pond])return;let e=W3.fish[f.id];
-    if(!e||e.dead){const {g,tail}=makeFish3D(f),c=L[f.pond],a=rnd()*6.28,r=1.5+rnd()*4;
-      const keep=e&&!e.dead?null:e;e=Object.assign(keep||{x:c.x+Math.cos(a)*r,z:c.z+Math.sin(a)*r,vx:0,vz:0,tx:c.x,tz:c.z,next:0,phase:rnd()*6,head:0},{g,tail,sig:sigOf(f),dead:false,pid:f.pond});
-      if(keep&&keep.pid!==f.pond){e.x=c.x;e.z=c.z}
-      W3.world.add(g);W3.fish[f.id]=e}
+  for(const id in W3.fish){const e=W3.fish[id],f=fishById(e.fid);if(!f||e.sig!==sigOf(f)||!pondsOf(f).includes(e.pid)){W3.world.remove(e.g);e.g.traverse(o=>{if(o.geometry)o.geometry.dispose()});if(!f||!pondsOf(f).includes(e.pid)){e.lbl&&e.lbl.remove();delete W3.fish[id]}else e.dead=true}}
+  D.fish.forEach(f=>pondsOf(f).forEach(pid=>{if(!L[pid])return;const key=f.id+'@'+pid;let e=W3.fish[key];
+    if(!e||e.dead){const {g,tail}=makeFish3D(f),c=L[pid],a=rnd()*6.28,r=1.5+rnd()*4;
+      const keep=e&&e.dead?e:null;e=Object.assign(keep||{x:c.x+Math.cos(a)*r,z:c.z+Math.sin(a)*r,vx:0,vz:0,tx:c.x,tz:c.z,next:0,phase:rnd()*6,head:0},{g,tail,sig:sigOf(f),dead:false,pid,fid:f.id});
+      W3.world.add(g);W3.fish[key]=e}
     if(!e.lbl){e.lbl=document.createElement('div');e.lbl.className='lbl';e.lbl.innerHTML='<span class="b" hidden></span><span class="evo" hidden>可進化</span><span class="n"></span>';$('labels').appendChild(e.lbl)}
-    e.lbl.querySelector('.n').textContent=f.name;e.lbl.querySelector('.evo').hidden=!canEvolve(f);e.lbl.querySelector('.b').textContent=daysSince(f)+' 天沒約了…'});
+    e.lbl.querySelector('.n').textContent=f.name;e.lbl.querySelector('.evo').hidden=!canEvolve(f);e.lbl.querySelector('.b').textContent=daysSince(f)+' 天沒約了…'}));
 }
 function focusPond(pid,instant){if(!W3.ok||!W3.layout||!W3.layout[pid])return;const p=W3.layout[pid],v=new THREE.Vector3(p.x,0,p.z);
   if(instant){const d=v.clone().sub(W3.ctl.target);W3.ctl.target.add(d);W3.cam.position.add(d);W3.focus=null}else W3.focus=v}
@@ -1263,7 +1267,7 @@ function render3D(t,dt){
   W3.pellets=W3.pellets.filter(p=>{if(p.m.position.y>-2.1)p.m.position.y-=.8*dt;else p.life-=dt;if(p.life<=0){W3.world.remove(p.m);return false}return true});
   W3.ripples=W3.ripples.filter(r=>{r.life-=dt;const k=1-r.life;r.m.scale.setScalar(.4+k*2.4);r.m.material.opacity=Math.max(0,r.life*.8);if(r.life<=0){W3.world.remove(r.m);r.m.geometry.dispose();return false}return true});
   const L=W3.layout,far=W3.cam.position.distanceTo(c.target)>58;
-  for(const id in W3.fish){const e=W3.fish[id],f=fishById(id);if(!f)continue;const cen=L[e.pid],sat=satiety(f);
+  for(const id in W3.fish){const e=W3.fish[id],f=fishById(e.fid);if(!f)continue;const cen=L[e.pid],sat=satiety(f);
     let best=null,bd=1e9;W3.pellets.forEach(p=>{if(p.pid!==e.pid)return;const d=Math.hypot(p.m.position.x-e.x,p.m.position.z-e.z);if(d<bd){bd=d;best=p}});
     if(best){e.tx=best.m.position.x;e.tz=best.m.position.z}
     else if(t>e.next||Math.hypot(e.tx-e.x,e.tz-e.z)<.6){const a=rnd()*6.28,r=rnd()*(POND_R-2);e.tx=cen.x+Math.cos(a)*r;e.tz=cen.z+Math.sin(a)*r;e.next=t+3+rnd()*4}
@@ -1404,9 +1408,9 @@ function renderPond(){
   if($('pondPanel').classList.contains('open'))markBoardSeen();const unr=boardUnread(pondSel);$('panelLabel').innerHTML=`${esc(pondById(pondSel)?.name||'')}${unr?` <span class="unread-pill">${unr} 則未讀</span>`:''}`;
   $('board').innerHTML=msgs.length?msgs.map(m=>{const f=fishById(m.by);return `<div class="msg"><div class="av ${m.by==='admin'?'admin':''}" style="${f?`background:${f.color}`:''}">${m.by==='admin'?'主':esc(f?.name[0]||'?')}</div><div class="bubble"><div class="h"><b>${esc(nameOf(m.by))}</b>${ago(m.at)}</div>${m.sticker?`<div class="stk">${m.sticker}</div>`:`<div class="t">${esc(m.text)}</div>`}</div></div>`}).join(''):'<div class="empty">這個池子還沒有人說話</div>';
   const mine=me();
-  if(isAdmin()||mine.pond===pondSel){
+  if(isAdmin()||pondsOf(mine).includes(pondSel)){
     $('composer').innerHTML=`<div class="composer mt"><div class="row"><input type="text" id="msgIn" maxlength="120" placeholder="${isAdmin()?'跟這池的魚說點什麼':'在這裡留言…'}" aria-label="留言內容"><button class="btn" id="msgSend">送出</button></div><div class="stickers" aria-label="貼圖">${STICKERS.map(s=>`<button data-stk="${s}" aria-label="傳送貼圖 ${s}">${s}</button>`).join('')}</div></div>`;
-  }else $('composer').innerHTML=`<div class="locked-note mt">你只能在自己的魚池留言（${pondById(mine.pond).name}），要抱怨請回自己的池子。</div>`;
+  }else $('composer').innerHTML=`<div class="locked-note mt">你只能在自己所在的魚池留言（${pondsOf(mine).map(id=>pondById(id)?.name).filter(Boolean).join('、')}），要抱怨請回自己的池子。</div>`;
 }
 function refreshRosterBars(){fishIn(pondSel).forEach(f=>{const el=document.querySelector(`[data-bar="${f.id}"]`);if(el){const s=satiety(f);el.style.width=s+'%';el.style.background=satColor(s)}})}
 
@@ -1423,7 +1427,7 @@ function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAtt
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
   for(let i=0;i<first.getDay();i++)html+='<div class="day blank"></div>';
   for(let d=1;d<=days;d++){const ds=ymd(new Date(calY,calM,d));const ev=D.events.filter(e=>e.date===ds);
-    const ps=[...new Set(ev.flatMap(e=>e.ppl.map(id=>fishById(id)?.pond).filter(Boolean)))].map(pondById).filter(Boolean),MK=R.calMark||'pill';let mark='',st='';
+    const ps=[...new Set(ev.flatMap(e=>e.ppl.flatMap(id=>pondsOf(fishById(id)))))].map(pondById).filter(Boolean),MK=R.calMark||'pill';let mark='',st='';
     if(ev.length&&ps.length){if(MK==='dot')mark=`<span class="dots">${ps.slice(0,3).map(p=>`<span class="dot" style="background:${p.color};width:9px;height:9px"></span>`).join('')}</span>`;
       if(MK==='pill')mark=`<span class="pills">${ps.slice(0,2).map(p=>`<span class="pill" style="background:${p.color}">${esc(p.name.replace(/池$/,'').slice(0,2))}</span>`).join('')}${ps.length>2?`<span class="pill more">+${ps.length-2}</span>`:''}</span>`;
       if(MK==='fish')mark=`<span class="fishes">${ps.slice(0,3).map(p=>`<svg viewBox="0 0 20 12" width="19" height="11" aria-hidden="true"><path d="M3 6 L0 1 L0 11Z" fill="${p.color}"/><ellipse cx="11" cy="6" rx="8" ry="5" fill="${p.color}"/><circle cx="15" cy="5" r="1.3" fill="#fff"/></svg>`).join('')}</span>${ev.length>1?`<span class="cnt">${ev.length} 個約</span>`:''}`;
@@ -1438,7 +1442,7 @@ function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAtt
 function evtCard(e){
   const mine=me();const invited=mine&&e.ppl.includes(mine.id);
   const ppl=e.ppl.map(id=>{const f=fishById(id);if(!f)return'';const r=e.rsvp[id];return `<span class="pp" style="box-shadow:inset 0 0 0 1.5px ${pondById(f.pond)?.color||'transparent'}"><span class="dot" style="background:${f.color};width:12px;height:12px"></span>${esc(f.name)}<span class="rs ${r||'none'}">${r?RS[r]:'未回覆'}</span></span>`}).join('');
-  const PS=[...new Set(e.ppl.map(id=>fishById(id)?.pond))].map(pondById).filter(Boolean);const ponds=PS.map(p=>`<span class="ptag" style="background:${p.color}">${esc(p.name)}</span>`).join('');const band=PS.length?`linear-gradient(90deg,${PS.map((p,k)=>`${p.color} ${k/PS.length*100}% ${(k+1)/PS.length*100}%`).join(',')})`:'var(--line)';
+  const PS=[...new Set(e.ppl.flatMap(id=>pondsOf(fishById(id))))].map(pondById).filter(Boolean);const ponds=PS.map(p=>`<span class="ptag" style="background:${p.color}">${esc(p.name)}</span>`).join('');const band=PS.length?`linear-gradient(90deg,${PS.map((p,k)=>`${p.color} ${k/PS.length*100}% ${(k+1)/PS.length*100}%`).join(',')})`:'var(--line)';
   let actions='';
   if(invited&&!e.done)actions+=`<div class="seg" role="group" aria-label="回覆邀約">${Object.entries(RS).map(([k,v])=>`<button data-rsvp="${e.id}" data-v="${k}" aria-pressed="${e.rsvp[mine.id]===k}">${v}</button>`).join('')}</div>`;
   if(isAdmin()){
@@ -1455,9 +1459,9 @@ function renderStats(){
   $('dexStats').innerHTML=`<div class="stat"><div class="k">最常約</div><div class="v">${most?`${esc(most.name)} · ${most.meets} 次`:'-'}</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div><div class="stat"><div class="k">本月已赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">下一個約</div><div class="v">${next?fmtDate(next.date):'-'}</div></div>`;
 }
 let pageIdx=0,bookPrev=null,flipping=false;
-const bookFish=()=>D.ponds.flatMap(p=>fishIn(p.id));
+const bookFish=()=>{const seen=new Set();return D.ponds.flatMap(p=>fishIn(p.id)).filter(f=>!seen.has(f.id)&&seen.add(f.id))};
 function pageHTML(f,i,n){const p=pondById(f.pond),s=satiety(f),P=f.profile;
-  return `<div class="pg-top"><span class="ribbon" style="background:${p.color}">${esc(p.name)}</span><span class="pgno">No.${String(i+1).padStart(3,'0')}</span></div>
+  return `<div class="pg-top"><span class="ribbons">${pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="ribbon" style="background:${q.color}">${esc(q.name)}</span>`).join('')}</span><span class="pgno">No.${String(i+1).padStart(3,'0')}</span></div>
   <div class="pg-art"><canvas class="bookcv" aria-label="${esc(f.name)} 的樣子"></canvas>${has3D?`<div class="seg mini hero-seg" role="group" aria-label="預覽方式"><button data-dexmode="2d" aria-pressed="${dexMode==='2d'}">2D</button><button data-dexmode="3d" aria-pressed="${dexMode==='3d'}">3D</button></div>`:''}</div>
   <div class="pg-name"><h3>${esc(f.name)}</h3><span class="badge">${LEVELS[f.level]}</span>${canEvolve(f)?'<span class="badge">可進化</span>':''}</div>
   <div class="pg-meta">約過 ${f.meets} 次 · 上次見面 ${fmtDate(f.last)}（${daysSince(f)} 天前）</div>
@@ -1471,7 +1475,7 @@ function drawBookCanvas(cv,f,t){if(!cv||!f)return;if(use3DPreview()){if(bookPrev
   else drawFish(ctx,w/2,h/2+4,L,o,t,1)}
 function renderDex(){
   const list=bookFish(),n=list.length;
-  $('bookChaps').innerHTML=D.ponds.map(p=>{const first=list.findIndex(f=>f.pond===p.id);const cur=n&&list[pageIdx]?.pond===p.id;return `<button class="chip" data-chap="${first}" aria-selected="${cur}" ${first<0?'disabled':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`}).join('');
+  $('bookChaps').innerHTML=D.ponds.map(p=>{const first=list.findIndex(f=>pondsOf(f).includes(p.id));const cur=n&&pondsOf(list[pageIdx]).includes(p.id);return `<button class="chip" data-chap="${first}" aria-selected="${cur}" ${first<0?'disabled':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`}).join('');
   if(!n){$('page').innerHTML='<div class="empty" style="margin:40px 0">圖鑑還是空的。塘主可以在魚池的面板裡新增魚。</div>';$('pgNum').textContent='';$('pgPrev').disabled=$('pgNext').disabled=true;bookPrev=null;return}
   pageIdx=Math.max(0,Math.min(n-1,pageIdx));const f=list[pageIdx];
   $('page').innerHTML=pageHTML(f,pageIdx,n);$('pgNum').textContent=`${pageIdx+1} / ${n}`;$('pgPrev').disabled=pageIdx===0;$('pgNext').disabled=pageIdx===n-1;
@@ -1507,7 +1511,7 @@ function showView(v){setTimeout(()=>alignHud(),0);view=v;document.documentElemen
 function renderHome(){
   $('homeErr').hidden=true;
   $('memberships').innerHTML=R.joined.length?R.joined.map((m,i)=>{const fm=R.farms[m.farm];if(!fm)return'';const f=m.viewer==='admin'?null:fm.fish.find(x=>x.id===m.viewer);
-    return `<button class="mem" data-enter="${i}"><canvas data-memfish="${i}" aria-hidden="true"></canvas><div><div class="nm">${esc(fm.name)}</div><div class="meta">${m.viewer==='admin'?`${fm.ponds.length} 個魚池 · ${fm.fish.length} 條魚`:`塘主是 ${esc(fm.owner)} · 你在${esc(fm.ponds.find(p=>p.id===f?.pond)?.name||'')}`}</div></div><span class="role-badge ${m.viewer==='admin'?'admin':'fish'}">${m.viewer==='admin'?'塘主':'魚 · '+esc(f?.name||'')}</span></button>`}).join(''):'<div class="empty">還沒有任何身分，先開一個魚塘或加入別人的吧。</div>';
+    return `<button class="mem" data-enter="${i}"><canvas data-memfish="${i}" aria-hidden="true"></canvas><div><div class="nm">${esc(fm.name)}</div><div class="meta">${m.viewer==='admin'?`${fm.ponds.length} 個魚池 · ${fm.fish.length} 條魚`:`塘主是 ${esc(fm.owner)} · 你在${esc(fm.ponds.filter(p=>pondsOf(f).includes(p.id)).map(p=>p.name).join('、'))}`}</div></div><span class="role-badge ${m.viewer==='admin'?'admin':'fish'}">${m.viewer==='admin'?'塘主':'魚 · '+esc(f?.name||'')}</span></button>`}).join(''):'<div class="empty">還沒有任何身分，先開一個魚塘或加入別人的吧。</div>';
   requestAnimationFrame(()=>document.querySelectorAll('[data-memfish]').forEach(cv=>{const m=R.joined[cv.dataset.memfish],fm=R.farms[m.farm];const f=m.viewer==='admin'?{color:'#17323A',hat:'crown',acc:'none',thin:1}:{...fm.fish.find(x=>x.id===m.viewer),thin:1};const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);drawFish(ctx,w/2,h/2+4,30,f,0,1)}));
 }
 function enterFarm(i){const m=R.joined[i];R.cur={...m};D=R.farms[m.farm];D.viewer=m.viewer;pondSel=me()?.pond||D.ponds[0]?.id;selDay=TODAY;save();resetPond();renderAll();showView('pond');if(mode3d)focusPond(pondSel,true);
@@ -1542,8 +1546,8 @@ function openAddMenu(){openSheet(`${head('新增')}<div class="menu"><button cla
 function openPondStyle(pid,keep){const p=pondById(pid);if(!p)return;styleId=pid;const sc=keep?$('sheet').scrollTop:0;
   let body='';
   if(pondTab==='basic'&&!isAdmin())pondTab='water';
-  if(pondTab==='basic'){const n=fishIn(pid).length;body=`<div class="field"><span>魚池名稱</span><input type="text" id="pName" maxlength="12" value="${esc(p.name)}"></div><div class="field"><span>代表色</span><div class="opts">${POND_COLORS.map(c=>`<button class="sw" style="background:${c}" data-pcol="${c}" aria-pressed="${c===p.color}" aria-label="顏色 ${c}"></button>`).join('')}</div></div>
-    <div class="row mt"><button class="btn" data-savebasic>儲存名稱與顏色</button><button class="btn danger" data-delpond="${pid}">刪除魚池</button></div>${n?`<p class="tiny" style="color:var(--muted)">池子裡還有 ${n} 條魚，要先清空才能刪除。</p>`:''}`}
+  if(pondTab==='basic'){const n=onlyIn(pid).length;body=`<div class="field"><span>魚池名稱</span><input type="text" id="pName" maxlength="12" value="${esc(p.name)}"></div><div class="field"><span>代表色</span><div class="opts">${POND_COLORS.map(c=>`<button class="sw" style="background:${c}" data-pcol="${c}" aria-pressed="${c===p.color}" aria-label="顏色 ${c}"></button>`).join('')}</div></div>
+    <div class="row mt"><button class="btn" data-savebasic>儲存名稱與顏色</button><button class="btn danger" data-delpond="${pid}">刪除魚池</button></div>${n?`<p class="tiny" style="color:var(--muted)">有 ${n} 條魚只住在這個池子，要先把牠們搬到別的池才能刪除。</p>`:''}`}
   if(pondTab==='water')body=`<div class="wgrid">${Object.entries(WATERS).map(([k,v])=>`<button class="wopt" data-pwater="${k}" aria-pressed="${(p.water||'clear')===k}"><span class="wswatch" style="background:linear-gradient(${v.w},${v.b})"></span><span>${v.n}</span></button>`).join('')}</div>`;
   if(pondTab==='decor')body=`<p class="tiny" style="color:var(--muted);margin-top:0">可以複選</p><div class="wgrid">${DECORS.map(d=>`<button class="wopt" data-pdecor="${d.id}" aria-pressed="${pDec(p).includes(d.id)}"><span class="wdeco">${d.n.slice(0,1)}</span><span>${d.n}</span></button>`).join('')}</div>`;
   if(pondTab==='sign')body=`<div class="field"><span>樣式</span><div class="wgrid">${SIGN_STYLES.map(d=>`<button class="wopt" data-psign="signStyle:${d.id}" aria-pressed="${sStyle(p)===d.id}"><img class="wsign" data-sprev="signStyle:${d.id}" alt=""><span>${d.n}</span></button>`).join('')}</div></div>
@@ -1558,17 +1562,18 @@ function openPondStyle(pid,keep){const p=pondById(pid);if(!p)return;styleId=pid;
   liveEdit=true;$('scrim').classList.add('peek');$('pondPanel').classList.remove('open');if(mode3d)focusPond(pid);if(keep)$('sheet').scrollTop=sc}
 let styleNotified=false;function drawSignPreviews(p){const c=document.createElement('canvas');c.width=320;c.height=110;const x=c.getContext('2d');document.querySelectorAll('[data-sprev]').forEach(im=>{const [k,v]=im.dataset.sprev.split(':');x.setTransform(1,0,0,1,0,0);x.clearRect(0,0,320,110);x.scale(.5,.5);drawSign(x,640,220,{...p,[k]:v},1);try{im.src=c.toDataURL()}catch(_){}})}
 function styleChanged(){if(!isAdmin()&&!styleNotified){styleNotified=true;notify('admin',`${me().name} 重新設計了${pondById(styleId)?.name||'魚池'}`)}save();if(mode3d)sync3D();renderPond()}
-function openPondForm(id){const p=id?pondById(id):null;const cur=p?p.color:POND_COLORS[D.ponds.length%POND_COLORS.length];const n=p?fishIn(id).length:0;
-  openSheet(`${head(p?'編輯魚池':'新增魚池')}<div class="field"><span>魚池名稱</span><input type="text" id="pName" maxlength="12" value="${esc(p?.name||'')}" placeholder="例如：高中同學池"></div><div class="field"><span>顏色</span><div class="opts">${POND_COLORS.map(c=>`<button class="sw" style="background:${c}" data-pcol="${c}" aria-pressed="${c===cur}" aria-label="顏色 ${c}"></button>`).join('')}</div></div><div class="row mt"><button class="btn" data-savepond="${id||''}">${p?'儲存':'建立魚池'}</button>${p?`<button class="btn danger" data-delpond="${id}">刪除魚池</button>`:''}</div>${p&&n?`<p class="tiny" style="color:var(--muted)">池子裡還有 ${n} 條魚，要先清空才能刪除。</p>`:''}`)}
+function openPondForm(id){const p=id?pondById(id):null;const cur=p?p.color:POND_COLORS[D.ponds.length%POND_COLORS.length];const n=p?onlyIn(id).length:0;
+  openSheet(`${head(p?'編輯魚池':'新增魚池')}<div class="field"><span>魚池名稱</span><input type="text" id="pName" maxlength="12" value="${esc(p?.name||'')}" placeholder="例如：高中同學池"></div><div class="field"><span>顏色</span><div class="opts">${POND_COLORS.map(c=>`<button class="sw" style="background:${c}" data-pcol="${c}" aria-pressed="${c===cur}" aria-label="顏色 ${c}"></button>`).join('')}</div></div><div class="row mt"><button class="btn" data-savepond="${id||''}">${p?'儲存':'建立魚池'}</button>${p?`<button class="btn danger" data-delpond="${id}">刪除魚池</button>`:''}</div>${p&&n?`<p class="tiny" style="color:var(--muted)">有 ${n} 條魚只住在這個池子，要先把牠們搬到別的池才能刪除。</p>`:''}`)}
 function savePond(id){const name=$('pName').value.trim();if(!name){toast('請幫魚池取個名字');return}const col=document.querySelector('[data-pcol][aria-pressed="true"]')?.dataset.pcol||POND_COLORS[0];
   if(id){const p=pondById(id),old=p.name;p.name=name;p.color=col;save();closeSheet();renderAll();toast(old===name?'魚池已更新':`「${old}」改名為「${name}」`);return}
   const nid='p'+Date.now();D.ponds.push({id:nid,name,color:col});D.boards[nid]=[];pondSel=nid;save();closeSheet();resetPond();renderAll();if(mode3d)focusPond(nid);toast(`建好「${name}」了`)}
-function deletePond(id,b){if(fishIn(id).length){toast('池子裡還有魚，不能刪除');return}if(D.ponds.length<=1){toast('至少要留一個魚池');return}
+const onlyIn=pid=>D.fish.filter(f=>pondsOf(f).length===1&&pondsOf(f)[0]===pid);
+function deletePond(id,b){if(onlyIn(id).length){toast('有魚只住在這個池子，先把牠們搬到別的池才能刪除');return}if(D.ponds.length<=1){toast('至少要留一個魚池');return}
   if(!b.dataset.armed){b.dataset.armed='1';b.textContent='再點一次確定刪除';return}
-  const name=pondById(id).name;D.ponds=D.ponds.filter(p=>p.id!==id);delete D.boards[id];pondSel=D.ponds[0].id;save();closeSheet();resetPond();renderAll();toast(`已刪除「${name}」`)}
-function openFishForm(){if(!D.ponds.length){toast('先新增一個魚池');return}openSheet(`${head('新增魚')}<div class="field"><span>朋友的名字</span><input type="text" id="nfName" maxlength="12" placeholder="例如：阿凱"></div><div class="field"><span>放進哪個魚池（一條魚只能在一個池）</span><select class="fld" id="nfPond">${D.ponds.map(p=>`<option value="${p.id}" ${p.id===pondSel?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div><button class="btn mt" id="saveFish">放進魚池並產生邀請碼</button>`)}
-function saveFish(){const name=$('nfName').value.trim();if(!name){toast('請輸入朋友的名字');return}const f={id:'x'+Date.now(),name,pond:$('nfPond').value,color:COLORS[D.fish.length%COLORS.length],hat:'none',acc:'none',meets:0,level:0,last:TODAY,code:makeCode(name),profile:{bday:'',likes:'',dislikes:'',msg:''}};
-  D.fish.push(f);const moved=pondSel!==f.pond;pondSel=f.pond;save();if(moved)resetPond();renderAll();if(mode3d)focusPond(f.pond);openSheet(`${head('魚放進去了')}<p>把這個邀請碼傳給 ${esc(name)}，他在首頁選「當魚」輸入就能認領這條魚。</p><div class="row" style="align-items:center"><span class="code">${f.code}</span><button class="btn small" data-copy="${f.code}">複製</button></div><button class="btn ghost mt" data-close>完成</button>`)}
+  const name=pondById(id).name;D.fish.forEach(f=>{if(pondsOf(f).includes(id)){f.ponds=pondsOf(f).filter(x=>x!==id);f.pond=f.ponds[0]}});D.ponds=D.ponds.filter(p=>p.id!==id);delete D.boards[id];pondSel=D.ponds[0].id;save();closeSheet();resetPond();renderAll();toast(`已刪除「${name}」`)}
+function openFishForm(){if(!D.ponds.length){toast('先新增一個魚池');return}openSheet(`${head('新增魚')}<div class="field"><span>朋友的名字</span><input type="text" id="nfName" maxlength="12" placeholder="例如：阿凱"></div><div class="field"><span>放進哪些魚池（可以同時在好幾個池）</span><div class="opts">${D.ponds.map(p=>`<label class="check"><input type="checkbox" name="nfPond" value="${p.id}" ${p.id===pondSel?'checked':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</label>`).join('')}</div></div><button class="btn mt" id="saveFish">放進魚池並產生邀請碼</button>`)}
+function saveFish(){const name=$('nfName').value.trim();if(!name){toast('請輸入朋友的名字');return}const ps=[...document.querySelectorAll('input[name=nfPond]:checked')].map(i=>i.value);if(!ps.length){toast('至少選一個魚池');return}const f={id:'x'+Date.now(),name,pond:ps[0],ponds:ps,color:COLORS[D.fish.length%COLORS.length],hat:'none',acc:'none',meets:0,level:0,last:TODAY,code:makeCode(name),profile:{bday:'',likes:'',dislikes:'',msg:''}};
+  D.fish.push(f);const moved=!ps.includes(pondSel);if(moved)pondSel=f.pond;save();if(moved)resetPond();renderAll();if(mode3d)focusPond(pondSel);openSheet(`${head('魚放進去了')}<p>把這個邀請碼傳給 ${esc(name)}，他在首頁選「當魚」輸入就能認領這條魚。</p><div class="row" style="align-items:center"><span class="code">${f.code}</span><button class="btn small" data-copy="${f.code}">複製</button></div><button class="btn ghost mt" data-close>完成</button>`)}
 
 /* ---------- sheets ---------- */
 function openSheet(html){$('sheet').innerHTML='<div class="grab"></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0}
@@ -1612,6 +1617,7 @@ function drawThumbs(f){document.querySelectorAll('[data-thumb]').forEach(cv=>{co
 function dressChanged(){save();renderPond();if(view==='dex')renderDex()}
 function closeSheet(){$('scrim').hidden=true;liveEdit=false;$('scrim').classList.remove('peek');previews=[];$('sheet').innerHTML=''}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeSheet()});
+document.addEventListener('change',e=>{const t=e.target;if(t.name==='fPpl')document.querySelectorAll(`input[name=fPpl][value="${t.value}"]`).forEach(y=>y.checked=t.checked)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('scrim').hidden)closeSheet()});
 const head=t=>`<div class="sheet-h"><h2>${t}</h2><button class="x" data-close aria-label="關閉">✕</button></div>`;
 
@@ -1625,7 +1631,7 @@ function openFish(id,keepEdit){curFish=id;
     :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd><dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>${canEdit(f)?`<button class="btn ghost small mt" data-editprof="${f.id}">編輯小檔案</button>`:''}`;
   const style=canDress(f)?`<button class="btn mt" style="width:100%" data-wardrobe="${f.id}">打開衣櫥換造型</button>`:'';
   openSheet(`${head(esc(f.name))}
-    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap"><span class="chip" style="padding:3px 10px;font-size:13px"><span class="dot" style="background:${pondById(f.pond).color}"></span>${pondById(f.pond).name}</span><span class="badge">${LEVELS[f.level]}</span>${own?'<span class="badge">這是你</span>':''}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">${isAdmin()?'<span style="font-size:12px;color:var(--muted);width:100%">所在魚池（點一下加入或搬出）</span>':''}${isAdmin()?D.ponds.map(q=>`<button class="chip" style="padding:3px 10px;font-size:13px" data-fishpond="${f.id}:${q.id}" aria-pressed="${pondsOf(f).includes(q.id)}"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}${pondsOf(f).includes(q.id)?' ✓':''}</button>`).join(''):pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="chip" style="padding:3px 10px;font-size:13px"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}</span>`).join('')}<span class="badge">${LEVELS[f.level]}</span>${own?'<span class="badge">這是你</span>':''}</div>
     <div class="hero-wrap"><canvas class="hero-fish" id="heroFish" aria-label="${esc(f.name)} 的樣子"></canvas>${has3D?`<div class="seg mini hero-seg" role="group" aria-label="預覽方式"><button data-dexmode="2d" aria-pressed="${dexMode==='2d'}">2D</button><button data-dexmode="3d" aria-pressed="${dexMode==='3d'}">3D</button></div>`:''}</div>${use3DPreview()?'<p style="font-size:12px;color:var(--muted);text-align:center;margin:-6px 0 10px">左右拖曳可以轉一圈看看</p>':''}
     ${isAdmin()?`<div class="row" style="align-items:center;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:13px;color:var(--muted)">邀請碼</span><span class="code">${f.code}</span><button class="btn ghost small" data-copy="${f.code}">複製</button></div>`:''}
     ${canEvolve(f)&&canEdit(f)?`<button class="btn" style="width:100%" data-evolve="${f.id}">可以進化了，登大人？</button>`:''}
@@ -1653,7 +1659,7 @@ function openEventForm(id){
 }
 function saveEvent(id){
   const title=$('fTitle').value.trim(),date=$('fDate').value,time=$('fTime').value||'00:00',loc=$('fLoc').value.trim(),note=$('fNote').value.trim();
-  const ppl=[...document.querySelectorAll('input[name=fPpl]:checked')].map(i=>i.value);
+  const ppl=[...new Set([...document.querySelectorAll('input[name=fPpl]:checked')].map(i=>i.value))];
   const err=$('fErr');
   if(!title){err.textContent='請填寫要做什麼。';err.hidden=false;return}
   if(!date){err.textContent='請選日期。';err.hidden=false;return}
@@ -1708,7 +1714,8 @@ document.addEventListener('click',ev=>{
   if(d.bait){R.bait=d.bait;save();document.querySelectorAll('[data-bait]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderFeedInfo();toast(`改撒「${curBait().n}」`);return}
   if(d.calmark){R.calMark=d.calmark;save();renderCal();return}
   if(d.style2d){R.style2d=d.style2d;save();document.querySelectorAll('[data-style2d]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.style2d===R.style2d));toast({classic:'2D 切換成經典',sticker:'2D 切換成貼紙風',tank:'2D 切換成水族箱'}[R.style2d]);return}
-  if(d.selpond){const bs=[...document.querySelectorAll(`input[data-pp="${d.selpond}"]`)],all=bs.every(x=>x.checked);bs.forEach(x=>x.checked=!all);b.textContent=all?'全選':'取消全選';return}
+  if(d.fishpond){const [fid,pid]=d.fishpond.split(':'),f=fishById(fid);if(!f)return;let ps=pondsOf(f).slice();if(ps.includes(pid)){if(ps.length<=1){toast('至少要留在一個魚池');return}ps=ps.filter(x=>x!==pid)}else ps.push(pid);f.ponds=D.ponds.map(p=>p.id).filter(id=>ps.includes(id));f.pond=f.ponds[0];save();renderAll();const on=f.ponds.includes(pid);b.setAttribute('aria-pressed',on);b.lastChild.textContent=pondById(pid).name+(on?' ✓':'');toast(on?`${f.name} 也住進「${pondById(pid).name}」了`:`${f.name} 搬出「${pondById(pid).name}」`);return}
+  if(d.selpond){const bs=[...document.querySelectorAll(`input[data-pp="${d.selpond}"]`)],all=bs.every(x=>x.checked);bs.forEach(x=>{x.checked=!all;document.querySelectorAll(`input[name=fPpl][value="${x.value}"]`).forEach(y=>y.checked=!all)});b.textContent=all?'全選':'取消全選';return}
   if(d.ppfx){const p=pondById(styleId);p.pfx=d.ppfx;styleChanged();openPondStyle(styleId,true);return}
   if(d.dexmode){dexMode=d.dexmode;renderDex();if(!$('scrim').hidden&&wardId&&$('wardFish')){openWardrobe(wardId,true)}else if(!$('scrim').hidden&&curFish&&$('heroFish')){const sc=$('sheet').scrollTop;openFish(curFish,true);$('sheet').scrollTop=sc}return}
   if(b.id==='switchFarm'){showView('home');return}
