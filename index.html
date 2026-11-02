@@ -157,6 +157,16 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .cf-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}.cf-row .cf-k{flex:0 0 34%}.cf-row .cf-v{flex:1;min-width:0}
 .cf-del{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
 .cf-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.cf-presets .chip{padding:4px 10px;font-size:13px}
+.adm-hero{display:flex;align-items:center;gap:12px;margin:8px 0 4px}.adm-av{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#FFE29A,#F2B632);display:grid;place-items:center;font-size:28px;flex:none;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.adm-name{font-family:var(--display);font-size:22px;font-weight:700}.adm-sub{font-size:13px;color:var(--muted)}
+.lb{display:flex;flex-direction:column;gap:6px}
+.lb-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px 10px;color:var(--ink)}
+.lb-rank{width:26px;text-align:center;font-size:20px;flex:none}.lb-n{font-family:var(--display);font-size:15px;color:var(--muted)}
+.lb-fish{width:44px;height:30px;flex:none}
+.lb-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}.lb-name{font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px}
+.lb-ponds{display:inline-flex;gap:3px}.lb-ponds .dot{width:8px;height:8px}
+.lb-bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden}.lb-bar i{display:block;height:100%;border-radius:999px}
+.lb-cnt{flex:none;font-size:12px;color:var(--muted)}.lb-cnt b{font-family:var(--display);font-size:18px;color:var(--ink)}
 .release{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
 .ribbons{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .ribbon{color:#fff;font-size:12px;font-weight:700;padding:3px 12px 3px 10px;border-radius:0 999px 999px 0;margin-left:-26px}
@@ -566,7 +576,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.4.0';
+const APP_VER='v1.5.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1474,6 +1484,22 @@ function evtCard(e){
   return `<article class="evt" style="--band:${band};background:linear-gradient(180deg,${PS[0]?hexA(PS[0].color,.1):'transparent'},transparent 60%),var(--surface)"><div class="evt-band" aria-hidden="true"></div><div class="evt-top"><div class="evt-time" style="color:${PS[0]?.color||'inherit'}">${isMulti(e)?(selDay===e.date?(e.allDay?'出發':e.time):selDay===evEnd(e)?(e.allDay||!e.endTime?'回程':e.endTime):'整天'):(e.allDay?'整天':e.time)}</div><div style="min-width:0"><div class="evt-title">${esc(e.title)}${isMulti(e)?`<span class="evt-days" style="background:${PS[0]?.color||'var(--koi)'}">第 ${Math.round((parseD(selDay)-parseD(e.date))/864e5)+1} / ${dayCount(e)} 天</span>`:''}</div>${isMulti(e)?`<div class="evt-range">${esc(whenText(e))}</div>`:''}<div class="evt-loc">${esc(e.loc||'地點未定')}</div><div class="ptags">${ponds}</div></div></div><div class="ppl">${ppl}</div>${note}${actions}</article>`;
 }
 
+const AP=()=>D.adminProfile||(D.adminProfile={nick:'',bday:'',intro:'',custom:[]});
+const adminName=()=>AP().nick||(D.owner==='我'?'塘主':D.owner);
+function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
+  const done=D.events.filter(e=>e.done),month=done.filter(e=>e.date.slice(0,7)===TODAY.slice(0,7)).length,up=D.events.filter(e=>!e.done&&evEnd(e)>=TODAY).length;
+  const met=D.fish.filter(f=>f.meets>0),far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
+  const rank=[...D.fish].sort((a,b)=>b.meets-a.meets||daysSince(a)-daysSince(b)).slice(0,10),mx=Math.max(1,...rank.map(f=>f.meets));
+  const medal=i=>['🥇','🥈','🥉'][i]||`<span class="lb-n">${i+1}</span>`;
+  const lb=rank.length?rank.map((f,i)=>`<button class="lb-row" data-fish="${f.id}"><span class="lb-rank">${medal(i)}</span><canvas class="lb-fish" data-lbfish="${f.id}" aria-hidden="true"></canvas><span class="lb-main"><span class="lb-name">${esc(f.name)}<span class="lb-ponds">${pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="dot" style="background:${q.color}"></span>`).join('')}</span></span><span class="lb-bar"><i style="width:${f.meets/mx*100}%;background:${pondById(f.pond)?.color||'var(--koi)'}"></i></span></span><span class="lb-cnt"><b>${f.meets}</b> 次</span></button>`).join(''):'<div class="empty">還沒有魚，先去新增幾條吧</div>';
+  const prof=edit?`<div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
+    :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>自我介紹</dt><dd>${esc(P.intro)||'（還沒寫）'}</dd>${cfRows(P)}</dl>${own?`<button class="btn ghost small mt" data-editadmin>編輯塘主資料</button>`:''}`;
+  openSheet(`${head('塘主資料')}<div class="adm-hero"><span class="adm-av" aria-hidden="true">👑</span><div><div class="adm-name">${esc(adminName())}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
+    <div class="stats"><div class="stat"><div class="k">累計赴約</div><div class="v">${done.length} 場</div></div><div class="stat"><div class="k">本月赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">即將到來</div><div class="v">${up} 個約</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div></div>
+    <h2 class="sec">約最多的魚</h2><div class="lb">${lb}</div>
+    <h2 class="sec">關於塘主</h2>${prof}`);
+  document.querySelectorAll('[data-lbfish]').forEach(cv=>{const f=fishById(cv.dataset.lbfish);if(!f)return;const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);drawFish(ctx,w/2,h/2+1,Math.min(w*.62,30),{...fishOpts(f),phase:1},0,1)})}
+function saveAdmin(){const P=AP();P.nick=$('aNick').value.trim();P.bday=$('aBday').value.trim();P.intro=$('aIntro').value.trim();P.custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);save();openAdmin(false);toast('塘主資料已儲存')}
 function renderStats(){
   const met=D.fish.filter(f=>f.meets>0),most=[...met].sort((a,b)=>b.meets-a.meets)[0],far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
   const month=D.events.filter(e=>e.done&&e.date.slice(0,7)===TODAY.slice(0,7)).length;
@@ -1556,6 +1582,7 @@ let liveEdit=false,pondTab='water',styleId=null;
 
 function openMenu(){const list=D.notifs[D.viewer]||[],un=list.filter(x=>!x.read).length;
   openSheet(`${head('選單')}<div class="menu">
+    <button class="mitem" id="menuAdmin"><span>塘主資料與排行榜</span><span class="mmuted">${esc(adminName())}</span></button>
     <button class="mitem" id="menuNotif"><span>通知</span>${un?`<b class="mbadge">${un}</b>`:'<span class="mmuted">沒有新通知</span>'}</button>
     <div class="mitem static"><span>今日撒餌</span><span class="mmuted">${feedText()}</span></div>
     <button class="mitem" id="menuEnv"><span>天氣與時間</span><span class="mmuted">${$('envText').textContent}</span></button>
@@ -1734,6 +1761,10 @@ document.addEventListener('click',ev=>{
   if(b.id==='baitBtn'){openBaitPicker();return}
   if(b.id==='envBtn'||b.id==='menuEnv'){openEnvSheet();return}
   if(b.id==='menuAcct'){Cloud.sheet();return}
+  if(b.id==='menuAdmin'){openAdmin(false);return}
+  if(d.editadmin!==undefined&&'editadmin' in d){openAdmin(true);return}
+  if('canceladmin' in d){openAdmin(false);return}
+  if('saveadmin' in d){saveAdmin();return}
   if(b.id==='cloudLogin'){Cloud.google();return}
   if(b.id==='cloudLogout'){Cloud.logout();return}
   if(b.id==='cloudSync'){Cloud.pull(true);return}
