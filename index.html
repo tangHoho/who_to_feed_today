@@ -288,7 +288,7 @@ textarea{resize:vertical;min-height:64px}
 .evt-range{font-size:12px;color:var(--muted);margin-top:2px}
 .day{aspect-ratio:auto;min-height:84px;padding-inline:2px;padding-top:8px;gap:5px;min-width:0;overflow:hidden;font-size:16px;border-radius:14px}
 .day.today .n{width:28px;height:28px;line-height:28px}
-#view-cal .grid{gap:3px}
+#view-cal .grid{gap:3px;position:relative;z-index:0;isolation:isolate}
 #view-cal .wk{font-size:13px}
 .lay-row{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px}
 /* 滿版（TimeTree 風）：左右貼齊螢幕、只有週與週之間的細線 */
@@ -606,7 +606,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.9.0';
+const APP_VER='v1.9.1';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
