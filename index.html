@@ -591,7 +591,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.7.0';
+const APP_VER='v1.7.1';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1513,14 +1513,14 @@ function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
   const rank=[...D.fish].sort((a,b)=>b.meets-a.meets||daysSince(a)-daysSince(b)).slice(0,10),mx=Math.max(1,...rank.map(f=>f.meets));
   const medal=i=>['🥇','🥈','🥉'][i]||`<span class="lb-n">${i+1}</span>`;
   const lb=rank.length?rank.map((f,i)=>`<button class="lb-row" data-fish="${f.id}"><span class="lb-rank">${medal(i)}</span><canvas class="lb-fish" data-lbfish="${f.id}" aria-hidden="true"></canvas><span class="lb-main"><span class="lb-name">${esc(f.name)}<span class="lb-ponds">${pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="dot" style="background:${q.color}"></span>`).join('')}</span></span><span class="lb-bar"><i style="width:${f.meets/mx*100}%;background:${pondById(f.pond)?.color||'var(--koi)'}"></i></span></span><span class="lb-cnt"><b>${f.meets}</b> 次</span></button>`).join(''):'<div class="empty">還沒有魚，先去新增幾條吧</div>';
-  const prof=edit?`<div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
+  const prof=edit?`<div class="field"><span>魚塘名稱</span><input type="text" id="aFarm" maxlength="20" value="${esc(D.name)}"></div><div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
     :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>自我介紹</dt><dd>${esc(P.intro)||'（還沒寫）'}</dd>${cfRows(P)}</dl>${own?`<button class="btn ghost small mt" data-editadmin>編輯塘主資料</button>`:''}`;
   openSheet(`${head('塘主資料')}<div class="adm-hero"><span class="adm-av" aria-hidden="true">👑</span><div><div class="adm-name">${esc(adminName())}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
     <div class="stats"><div class="stat"><div class="k">累計赴約</div><div class="v">${done.length} 場</div></div><div class="stat"><div class="k">本月赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">即將到來</div><div class="v">${up} 個約</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div></div>
     <h2 class="sec">約最多的魚</h2><div class="lb">${lb}</div>
     <h2 class="sec">關於塘主</h2>${prof}`);
   document.querySelectorAll('[data-lbfish]').forEach(cv=>{const f=fishById(cv.dataset.lbfish);if(!f)return;const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);drawFish(ctx,w/2,h/2+1,Math.min(w*.62,30),{...fishOpts(f),phase:1},0,1)})}
-function saveAdmin(){const P=AP();P.nick=$('aNick').value.trim();P.bday=$('aBday').value.trim();P.intro=$('aIntro').value.trim();P.custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);save();openAdmin(false);toast('塘主資料已儲存')}
+function saveAdmin(){const P=AP();const fn=$('aFarm').value.trim();if(fn)D.name=fn;P.nick=$('aNick').value.trim();P.bday=$('aBday').value.trim();P.intro=$('aIntro').value.trim();P.custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);save();renderViewer();openAdmin(false);toast('塘主資料已儲存')}
 function renderStats(){
   const met=D.fish.filter(f=>f.meets>0),most=[...met].sort((a,b)=>b.meets-a.meets)[0],far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
   const month=D.events.filter(e=>e.done&&!isPersonal(e)&&e.date.slice(0,7)===TODAY.slice(0,7)).length;
@@ -1603,6 +1603,7 @@ let liveEdit=false,pondTab='water',styleId=null;
 
 function openMenu(){const list=D.notifs[D.viewer]||[],un=list.filter(x=>!x.read).length;
   openSheet(`${head('選單')}<div class="menu">
+    ${isAdmin()?`<button class="mitem" id="menuFarmName"><span>魚塘名稱</span><span class="mmuted">${esc(D.name)}</span></button>`:''}
     <button class="mitem" id="menuAdmin"><span>塘主資料與排行榜</span><span class="mmuted">${esc(adminName())}</span></button>
     <button class="mitem" id="menuNotif"><span>通知</span>${un?`<b class="mbadge">${un}</b>`:'<span class="mmuted">沒有新通知</span>'}</button>
     <div class="mitem static"><span>今日撒餌</span><span class="mmuted">${feedText()}</span></div>
@@ -1782,6 +1783,8 @@ document.addEventListener('click',ev=>{
   if(b.id==='envBtn'||b.id==='menuEnv'){openEnvSheet();return}
   if(b.id==='menuAcct'){Cloud.sheet();return}
   if(b.id==='menuAdmin'){openAdmin(false);return}
+  if(b.id==='menuFarmName'){openSheet(`${head('魚塘名稱')}<div class="field"><span>魚塘名稱</span><input type="text" id="farmNameIn" maxlength="20" value="${esc(D.name)}" placeholder="例如：吼吼的漁場"></div><button class="btn mt" id="saveFarmName">儲存</button>`);setTimeout(()=>{const i=$('farmNameIn');i&&i.focus();i&&i.select()},250);return}
+  if(b.id==='saveFarmName'){const v=$('farmNameIn').value.trim();if(!v){toast('請幫魚塘取個名字');return}const old=D.name;D.name=v;save();closeSheet();renderAll();renderViewer();toast(old===v?'魚塘名稱沒有變':`「${old}」改名為「${v}」`);return}
   if(d.editadmin!==undefined&&'editadmin' in d){openAdmin(true);return}
   if('canceladmin' in d){openAdmin(false);return}
   if('saveadmin' in d){saveAdmin();return}
