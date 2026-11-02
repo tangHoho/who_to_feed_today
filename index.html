@@ -280,7 +280,7 @@ textarea{resize:vertical;min-height:64px}
 .day .lanes .lseg.s{left:2px;border-top-left-radius:5px;border-bottom-left-radius:5px}
 .day .lanes .lseg.e{right:2px;border-top-right-radius:5px;border-bottom-right-radius:5px}
 .day .lanes .lseg.ws{left:2px}.day .lanes .lseg.we{right:2px}
-.day .lanes .lseg .t{position:absolute;left:6px;top:0;z-index:2;font-size:11px;line-height:17px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;text-shadow:0 1px 1px rgba(0,0,0,.25);pointer-events:none}
+.day .lanes .lseg .t{position:absolute;left:6px;box-sizing:border-box;top:0;z-index:2;font-size:11px;line-height:17px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;text-shadow:0 1px 1px rgba(0,0,0,.25);pointer-events:none}
 .day .lanes .lseg:not(.s) .t{left:4px}
 .day .trip{position:absolute;left:-2px;right:-2px;height:4px;opacity:.9}
 .day .trip.s{left:6px;border-radius:4px 0 0 4px}.day .trip.e{right:6px;border-radius:0 4px 4px 0}.day .trip.s.e{border-radius:4px}
@@ -605,7 +605,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.9.2';
+const APP_VER='v1.9.3';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1487,6 +1487,8 @@ function openCalStyle(){const LY=R.calLay||'full',MK=R.calMark||'pill';
   const opt=(attr,k,n,desc,cur)=>`<button class="wopt" data-${attr}="${k}" aria-pressed="${cur===k}"><span>${n}</span><small>${desc}</small></button>`;
   openSheet(`${head('行事曆樣式')}<h2 class="sec">版面</h2><div class="wgrid">${opt('callay','full','滿版','左右貼齊、像 TimeTree',LY)}${opt('callay','lines','格線','滿版加上直線',LY)}${opt('callay','card','卡片','圓角卡片',LY)}</div>
     <h2 class="sec">約會標記</h2><div class="wgrid">${opt('calmark','pill','色條','池名色條，多天行程一整條',MK)}${opt('calmark','fish','小魚','池子顏色的小魚',MK)}${opt('calmark','fill','塗色','整格塗上池子顏色',MK)}${opt('calmark','dot','點點','簡單的小圓點',MK)}</div>`)}
+function fitSegText(){const g=$('calGrid');if(!g)return;g.querySelectorAll('.lseg .t').forEach(t=>{const sg=t.parentElement,segs=[...g.querySelectorAll(`.lseg[data-eid="${sg.dataset.eid}"][data-wk="${sg.dataset.wk}"]`)];if(!segs.length)return;const L=sg.getBoundingClientRect().left,R2=Math.max(...segs.map(x=>x.getBoundingClientRect().right));t.style.width=Math.max(10,R2-L-(sg.classList.contains('s')?10:8))+'px'})}
+window.addEventListener('resize',()=>{if(view==='cal')fitSegText()});
 function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('lay-full','lay-lines','lay-card');$('view-cal').classList.add('lay-'+LY);$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
   $('calTitle').textContent=`${calY} 年 ${calM+1} 月`;
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
@@ -1503,9 +1505,9 @@ function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('l
       if(MK==='fill'){st=`style="background:linear-gradient(135deg,${ps.map((p,k)=>`${hexA(p.color,.34)} ${k/ps.length*100}% ${(k+1)/ps.length*100}%`).join(',')});border-color:${ps[0].color}"`;mark=`<span class="cnt solid" style="background:${ps[0].color}">${ev.length}</span>`}}
     html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${MK0==='pill'?`style="z-index:${100-d}"`:st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${MK0==='pill'&&wkMax[wk(d)]?`<span class="lanes" style="height:${wkMax[wk(d)]*19}px">${multi.filter(e=>onDay(e,ds)&&lane[e.id]<3).map(e=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',dow=new Date(calY,calM,d).getDay(),st=ds===e.date,en=ds===evEnd(e),showT=st||dow===0||d===1;
         const wkEnd=ymd(new Date(calY,calM,Math.min(days,d+6-dow))),stop=evEnd(e)<wkEnd?evEnd(e):wkEnd,n=Math.round((parseD(stop)-parseD(ds))/864e5)+1;
-        return `<span class="lseg${st?' s':''}${en?' e':''}${!st&&(dow===0||d===1)?' ws':''}${!en&&(dow===6||d===days)?' we':''}" style="background:${c};top:${lane[e.id]*19}px">${showT?`<span class="t" style="width:calc(${n*100}% + ${(n-1)*8-8}px)">${esc(e.title)}</span>`:''}</span>`}).join('')}</span>`:''}${mark}${MK0!=='pill'?ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join(''):''}</button>`}
+        return `<span class="lseg${st?' s':''}${en?' e':''}${!st&&(dow===0||d===1)?' ws':''}${!en&&(dow===6||d===days)?' we':''}" data-eid="${e.id}" data-wk="${wk(d)}" style="background:${c};top:${lane[e.id]*19}px">${showT?`<span class="t">${esc(e.title)}</span>`:''}</span>`}).join('')}</span>`:''}${mark}${MK0!=='pill'?ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join(''):''}</button>`}
   {const tail=(7-(first.getDay()+days)%7)%7;for(let i=0;i<tail;i++)html+='<div class="day blank"></div>'}
-  $('calGrid').innerHTML=html;
+  $('calGrid').innerHTML=html;requestAnimationFrame(fitSegText);
   $('agendaTitle').textContent=fmtDate(selDay)+(selDay===TODAY?' · 今天':'');
   $('addEvt').hidden=!isAdmin();
   const ev=EVS().filter(e=>onDay(e,selDay)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -1595,7 +1597,7 @@ function endFlip(cv,commit){flipping=true;const fin=()=>{removeCurl(cv);curl=nul
   else{if(commit)animCurl(cv,0,180+500*cv.p,()=>{pageIdx=cv.to;renderDex();fin()});else animCurl(cv,1,320,fin)}}
 function flipTo(ni){const list=bookFish();if(ni<0||ni>=list.length||ni===pageIdx)return;if(reduced){pageIdx=ni;renderDex();return}const cv=startFlip(ni);if(!cv)return;curl=cv;endFlip(cv,true)}
 function renderAll(){if(!D.ponds.find(p=>p.id===pondSel))pondSel=me()?.pond||D.ponds[0]?.id;renderViewer();renderPond();renderCal();renderDex()}
-function showView(v){setTimeout(()=>alignHud(),0);view=v;document.documentElement.classList.toggle('pond-full',v==='pond');document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===view));['home','pond','cal','dex'].forEach(x=>$('view-'+x).hidden=x!==view);if(view==='home')renderHome();if(view==='dex')renderDex();renderViewer();window.scrollTo(0,0)}
+function showView(v){setTimeout(()=>alignHud(),0);if(v==='cal')requestAnimationFrame(()=>requestAnimationFrame(fitSegText));view=v;document.documentElement.classList.toggle('pond-full',v==='pond');document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===view));['home','pond','cal','dex'].forEach(x=>$('view-'+x).hidden=x!==view);if(view==='home')renderHome();if(view==='dex')renderDex();renderViewer();window.scrollTo(0,0)}
 function renderHome(){
   $('homeErr').hidden=true;
   $('memberships').innerHTML=R.joined.length?R.joined.map((m,i)=>{const fm=R.farms[m.farm];if(!fm)return'';const f=m.viewer==='admin'?null:fm.fish.find(x=>x.id===m.viewer);
