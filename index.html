@@ -611,7 +611,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.10.0';
+const APP_VER='v1.10.1';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1582,12 +1582,12 @@ function renderDex(){
   $('page').innerHTML=pageHTML(f,pageIdx,n);$('pgNum').textContent=`${pageIdx+1} / ${n}`;$('pgPrev').disabled=pageIdx===0;$('pgNext').disabled=pageIdx===n-1;
   bookPrev={cv:$('page').querySelector('.bookcv'),id:f.id,yaw:-.5};attachSpin(bookPrev);drawBookCanvas(bookPrev.cv,f,0);
 }
-function pageSnapshot(el){const c=el.cloneNode(true);c.removeAttribute('id');const oc=el.querySelector('canvas'),cc=c.querySelector('canvas');if(oc&&cc){const im=new Image();try{im.src=oc.toDataURL()}catch(e){}im.className='bookcv';cc.replaceWith(im)}c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));c.querySelectorAll('.hero-seg').forEach(n=>n.remove());return c}
+function pageSnapshot(el){const c=el.cloneNode(true);c.removeAttribute('id');const oc=el.querySelector('canvas'),cc=c.querySelector('canvas');if(oc&&cc){const bm=document.createElement('canvas');bm.width=oc.width;bm.height=oc.height;try{bm.getContext('2d').drawImage(oc,0,0)}catch(e){}c._bmp=bm;paintSnap(cc,bm)}c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));c.querySelectorAll('.hero-seg').forEach(n=>n.remove());return c}
 function makeTpl(i){const list=bookFish(),tmp=document.createElement('article');tmp.className='page';tmp.style.cssText='position:absolute;left:0;top:0;width:100%;visibility:hidden';tmp.innerHTML=pageHTML(list[i],i,list.length);$('book').appendChild(tmp);drawBookCanvas(tmp.querySelector('canvas'),list[i],0);const snap=pageSnapshot(tmp);snap.dataset.h=tmp.offsetHeight;tmp.remove();return snap}
 function buildCurl(tpl){const book=$('book'),W=book.clientWidth,H=Math.max(+tpl.dataset.h||0,$('page').offsetHeight),N=32,sw=W/N;
   const root=document.createElement('div');root.className='curl';root.style.height=H+'px';const strips=[];
   for(let i=0;i<N;i++){const st=document.createElement('div');st.className='strip';st.style.cssText=`left:${i*sw-.75}px;width:${sw+1.5}px;height:${H}px`;
-    const face=document.createElement('div');face.className='face';const c=tpl.cloneNode(true);c.style.cssText=`position:absolute;left:${-i*sw+.75}px;top:0;width:${W}px;height:${H}px;margin:0;transform:none;box-shadow:none`;face.appendChild(c);
+    const face=document.createElement('div');face.className='face';const c=tpl.cloneNode(true);paintSnap(c.querySelector('canvas'),tpl._bmp);c.style.cssText=`position:absolute;left:${-i*sw+.75}px;top:0;width:${W}px;height:${H}px;margin:0;transform:none;box-shadow:none`;face.appendChild(c);
     const sh=document.createElement('div');sh.className='cshade';face.appendChild(sh);const back=document.createElement('div');back.className='back';const bsh=document.createElement('div');bsh.className='cshade';back.appendChild(bsh);
     st.append(face,back);root.appendChild(st);strips.push({st,sh,bsh,xc:i*sw+sw/2})}
   const cast=document.createElement('div');cast.className='cast';book.appendChild(cast);book.appendChild(root);return {root,strips,cast,N,W,r:Math.max(26,W*.11),p:0}}
@@ -1600,6 +1600,7 @@ function setCurl(cv,p){cv.p=p;const {W,r}=cv,X=W-p*(W+Math.PI*r*.75);
 function removeCurl(cv){cv.root.remove();cv.cast.remove()}
 function animCurl(cv,to,dur,done){const from=cv.p,t0=performance.now();cv.drag=false;const step=now=>{let k=Math.min(1,(now-t0)/dur);k=1-Math.pow(1-k,3);setCurl(cv,from+(to-from)*k);if(k<1)requestAnimationFrame(step);else done&&done()};requestAnimationFrame(step)}
 let curl=null;
+function paintSnap(cv,bm){if(!cv||!bm)return;cv.width=bm.width;cv.height=bm.height;cv.getContext('2d').drawImage(bm,0,0)}
 function startFlip(ni){const list=bookFish();if(curl||flipping||ni<0||ni>=list.length||ni===pageIdx)return null;
   if(ni>pageIdx){const tpl=pageSnapshot($('page'));tpl.dataset.h=$('page').offsetHeight;const cv=buildCurl(tpl);cv.dir=1;cv.from=pageIdx;pageIdx=ni;renderDex();setCurl(cv,0);return cv}
   const cv=buildCurl(makeTpl(ni));cv.dir=-1;cv.to=ni;setCurl(cv,1);return cv}
