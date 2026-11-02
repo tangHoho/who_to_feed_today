@@ -167,6 +167,7 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .lb-ponds{display:inline-flex;gap:3px}.lb-ponds .dot{width:8px;height:8px}
 .lb-bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden}.lb-bar i{display:block;height:100%;border-radius:999px}
 .lb-cnt{flex:none;font-size:12px;color:var(--muted)}.lb-cnt b{font-family:var(--display);font-size:18px;color:var(--ink)}
+.inv-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
 .release{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
 .ribbons{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .ribbon{color:#fff;font-size:12px;font-weight:700;padding:3px 12px 3px 10px;border-radius:0 999px 999px 0;margin-left:-26px}
@@ -591,7 +592,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.7.1';
+const APP_VER='v1.8.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1536,7 +1537,7 @@ function pageHTML(f,i,n){const p=pondById(f.pond),s=satiety(f),P=f.profile;
   <div class="pg-meta">約過 ${f.meets} 次 · 上次見面 ${fmtDate(f.last)}（${daysSince(f)} 天前）</div>
   <div class="pg-sat"><span>飽足感</span><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div><b style="color:${satColor(s)}">${satLabel(s)}</b></div>
   <dl class="prof pg-prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd>${cfRows(P)}<dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>
-  <div class="pg-foot"><span class="row" style="gap:6px"><button class="btn ghost small" data-fish="${f.id}">小檔案</button>${canDress(f)?`<button class="btn small" data-wardrobe="${f.id}">換造型</button>`:''}</span><span class="pgno">${i+1} / ${n}</span></div>`}
+  ${isAdmin()?`<div class="inv-row"><span class="tiny" style="color:var(--muted)">邀請碼</span><span class="code">${f.code}</span><button class="btn ghost small" data-copy="${f.code}">複製邀請連結</button></div>`:''}<div class="pg-foot"><span class="row" style="gap:6px"><button class="btn ghost small" data-fish="${f.id}">小檔案</button>${canDress(f)?`<button class="btn small" data-wardrobe="${f.id}">換造型</button>`:''}</span><span class="pgno">${i+1} / ${n}</span></div>`}
 function drawBookCanvas(cv,f,t){if(!cv||!f)return;if(use3DPreview()){if(bookPrev&&bookPrev.cv===cv){if(!bookPrev.drag&&!(bookPrev.last&&performance.now()-bookPrev.last<1600))bookPrev.yaw+=.012}if(renderPV(cv,f,t,bookPrev&&bookPrev.cv===cv?bookPrev.yaw:-.5,4.2,bookPrev&&bookPrev.cv===cv?bookPrev.pitch:.3))return}
   const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);const S2=R.style2d||'classic',L=Math.min(w*.42,fishSize(f)*2.1),o={...fishOpts(f),phase:1};
   if(S2==='tank'){const WT=pW(pondById(f.pond)||{}),g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,mix(WT.w,.12));g.addColorStop(1,mix(WT.b,-.15));ctx.fillStyle=g;ctx.fillRect(0,0,w,h);tankBg(ctx,w,h,t,h-20);drawFish(ctx,w/2,h/2-4,L,o,t,1);tankGlass(ctx,w,h,t)}
@@ -1586,6 +1587,12 @@ function renderHome(){
 function enterFarm(i){const m=R.joined[i];R.cur={...m};D=R.farms[m.farm];D.viewer=m.viewer;pondSel=me()?.pond||D.ponds[0]?.id;selDay=TODAY;save();resetPond();renderAll();showView('pond');if(mode3d)focusPond(pondSel,true);
   toast(isAdmin()?`歡迎回到 ${D.name}，塘主`:`你是 ${me().name}，在 ${D.name}`);
   const m2=me();if(m2&&canEvolve(m2))setTimeout(()=>promptEvolve(m2.id),500)}
+const inviteUrl=code=>location.origin+location.pathname+'?code='+encodeURIComponent(code);
+function copyText(t,msg){const ok=()=>toast(msg),fb=()=>{try{const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const r=document.execCommand('copy');ta.remove();r?ok():toast('無法自動複製，請長按邀請碼')}catch(e){toast('無法自動複製，請長按邀請碼')}};try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}}
+function joinFromUrl(){let code='';try{const u=new URL(location.href);code=u.searchParams.get('code')||'';if(code){u.searchParams.delete('code');history.replaceState(null,'',u.pathname+(u.search||'')+u.hash)}}catch(e){}
+  if(!code)return;const hit=findCode(code);
+  if(!hit){showView('home');$('joinCode').value=code.toUpperCase();homeErr('這支手機找不到這組邀請碼。已幫你填好，確認後按「加入魚塘」；如果還是找不到，請塘主確認一下。');return}
+  let i=R.joined.findIndex(m=>m.farm===hit.farm&&m.viewer===hit.fish.id);if(i<0){R.joined.push({farm:hit.farm,viewer:hit.fish.id});i=R.joined.length-1}save();enterFarm(i);setTimeout(()=>toast(`歡迎 ${hit.fish.name} 游進來！`),2400)}
 function homeErr(t){$('homeErr').textContent=t;$('homeErr').hidden=false}
 function createFarm(){const name=$('newFarm').value.trim()||'我的新魚塘';const id='f'+Date.now();
   R.farms[id]={id,name,owner:'我',viewer:'admin',ponds:[{id:'p1',name:'第一個魚池',color:POND_COLORS[0]}],fish:[],events:[],notes:{},boards:{p1:[]},notifs:{},feedLog:{},feedBonus:{}};
@@ -1651,7 +1658,7 @@ function deletePond(id,b){if(onlyIn(id).length){toast('有魚只住在這個池�
   const name=pondById(id).name;D.fish.forEach(f=>{if(pondsOf(f).includes(id)){f.ponds=pondsOf(f).filter(x=>x!==id);f.pond=f.ponds[0]}});D.ponds=D.ponds.filter(p=>p.id!==id);delete D.boards[id];pondSel=D.ponds[0].id;save();closeSheet();resetPond();renderAll();toast(`已刪除「${name}」`)}
 function openFishForm(){if(!D.ponds.length){toast('先新增一個魚池');return}openSheet(`${head('新增魚')}<div class="field"><span>朋友的名字</span><input type="text" id="nfName" maxlength="12" placeholder="例如：阿凱"></div><div class="field"><span>放進哪些魚池（可以同時在好幾個池）</span><div class="opts">${D.ponds.map(p=>`<label class="check"><input type="checkbox" name="nfPond" value="${p.id}" ${p.id===pondSel?'checked':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</label>`).join('')}</div></div><button class="btn mt" id="saveFish">放進魚池並產生邀請碼</button>`)}
 function saveFish(){const name=$('nfName').value.trim();if(!name){toast('請輸入朋友的名字');return}const ps=[...document.querySelectorAll('input[name=nfPond]:checked')].map(i=>i.value);if(!ps.length){toast('至少選一個魚池');return}const f={id:'x'+Date.now(),name,pond:ps[0],ponds:ps,color:COLORS[D.fish.length%COLORS.length],hat:'none',acc:'none',meets:0,level:0,last:TODAY,code:makeCode(name),profile:{bday:'',likes:'',dislikes:'',msg:''}};
-  D.fish.push(f);const moved=!ps.includes(pondSel);if(moved)pondSel=f.pond;save();if(moved)resetPond();renderAll();if(mode3d)focusPond(pondSel);openSheet(`${head('魚放進去了')}<p>把這個邀請碼傳給 ${esc(name)}，他在首頁選「當魚」輸入就能認領這條魚。</p><div class="row" style="align-items:center"><span class="code">${f.code}</span><button class="btn small" data-copy="${f.code}">複製</button></div><button class="btn ghost mt" data-close>完成</button>`)}
+  D.fish.push(f);const moved=!ps.includes(pondSel);if(moved)pondSel=f.pond;save();if(moved)resetPond();renderAll();if(mode3d)focusPond(pondSel);openSheet(`${head('魚放進去了')}<p>按「複製邀請連結」傳給 ${esc(name)}，他打開連結就會自動帶入邀請碼、直接進到魚池。也可以在首頁選「當魚」手動輸入邀請碼。</p><div class="row" style="align-items:center"><span class="code">${f.code}</span><button class="btn small" data-copy="${f.code}">複製邀請連結</button></div><button class="btn ghost mt" data-close>完成</button>`)}
 
 /* ---------- sheets ---------- */
 function openSheet(html){$('sheet').innerHTML='<div class="grab"></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0}
@@ -1711,7 +1718,7 @@ function openFish(id,keepEdit){curFish=id;
   openSheet(`${head(esc(f.name))}
     <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">${isAdmin()?'<span style="font-size:12px;color:var(--muted);width:100%">所在魚池（點一下加入或搬出）</span>':''}${isAdmin()?D.ponds.map(q=>`<button class="chip" style="padding:3px 10px;font-size:13px" data-fishpond="${f.id}:${q.id}" aria-pressed="${pondsOf(f).includes(q.id)}"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}${pondsOf(f).includes(q.id)?' ✓':''}</button>`).join(''):pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="chip" style="padding:3px 10px;font-size:13px"><span class="dot" style="background:${q.color}"></span>${esc(q.name)}</span>`).join('')}<span class="badge">${LEVELS[f.level]}</span>${own?'<span class="badge">這是你</span>':''}</div>
     <div class="hero-wrap"><canvas class="hero-fish" id="heroFish" aria-label="${esc(f.name)} 的樣子"></canvas>${has3D?`<div class="seg mini hero-seg" role="group" aria-label="預覽方式"><button data-dexmode="2d" aria-pressed="${dexMode==='2d'}">2D</button><button data-dexmode="3d" aria-pressed="${dexMode==='3d'}">3D</button></div>`:''}</div>${use3DPreview()?'<p style="font-size:12px;color:var(--muted);text-align:center;margin:-6px 0 10px">左右拖曳可以轉一圈看看</p>':''}
-    ${isAdmin()?`<div class="row" style="align-items:center;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:13px;color:var(--muted)">邀請碼</span><span class="code">${f.code}</span><button class="btn ghost small" data-copy="${f.code}">複製</button></div>`:''}
+    ${isAdmin()?`<div class="row" style="align-items:center;margin-bottom:12px;flex-wrap:wrap"><span style="font-size:13px;color:var(--muted)">邀請碼</span><span class="code">${f.code}</span><button class="btn ghost small" data-copy="${f.code}">複製邀請連結</button></div>`:''}
     ${canEvolve(f)&&canEdit(f)?`<button class="btn" style="width:100%" data-evolve="${f.id}">可以進化了，登大人？</button>`:''}
     <div class="stats"><div class="stat"><div class="k">飽足感</div><div class="v" style="color:${satColor(s)}">${s}% · ${satLabel(s)}</div><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div></div><div class="stat"><div class="k">上次見面</div><div class="v">${fmtDate(f.last)}</div><div class="k">${daysSince(f)} 天前</div></div><div class="stat"><div class="k">約過</div><div class="v">${f.meets} 次</div></div><div class="stat"><div class="k">下一級</div><div class="v">${f.level>=4?'已是魚王':nxt>0?`還差 ${nxt} 次`:'已達標'}</div></div></div>
     <h2 class="sec">小檔案</h2>${prof}
@@ -1818,7 +1825,7 @@ document.addEventListener('click',ev=>{
   if(d.pcol){document.querySelectorAll('[data-pcol]').forEach(x=>x.setAttribute('aria-pressed',x===b));return}
   if(b.id==='addFish'){openFishForm();return}
   if(b.id==='saveFish'){saveFish();return}
-  if(d.copy){const done=()=>toast('已複製邀請碼');try{navigator.clipboard.writeText(d.copy).then(done,()=>toast('無法自動複製，請長按邀請碼'))}catch(e){toast('無法自動複製，請長按邀請碼')}return}
+  if(d.copy){const f=D.fish.find(x=>x.code===d.copy),txt=`${f?`${f.name}，`:''}來「今天餵誰」當我的魚！\n邀請碼：${d.copy}\n${inviteUrl(d.copy)}`;copyText(txt,'已複製邀請連結，貼給魚就可以了');return}
   if(b.id==='pokeCard'){const id=pokeState?.fid;hidePoke();if(id)openFish(id);return}
   if(d.pond){hidePoke();pondSel=d.pond;resetPond();renderPond();if(mode3d)focusPond(pondSel);return}
   if(d.pmode){hidePoke();mode3d=d.pmode==='3d';applyMode();return}
@@ -1906,7 +1913,7 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
       :`<p>${esc(this.status())}</p>${this.state==='off'?'':`<button class="gbtn mt" id="cloudLogin">${GICON}用 Google 登入</button>`}`}<p class="tiny mt" style="color:var(--muted)">登入後，你的魚塘、魚池、行事曆和造型會存到雲端，換手機也看得到。</p></div>`)}
 };
 window.__cloud=Cloud;
-$('homeVer').textContent='今天餵誰 '+APP_VER;resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());
+$('homeVer').textContent='今天餵誰 '+APP_VER;resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());joinFromUrl();
 try{document.fonts&&document.fonts.ready.then(()=>{W3.fontTick=(W3.fontTick||0)+1;if(mode3d&&W3.ok)sync3D()})}catch(_){}
 requestAnimationFrame(loop);
 })();
