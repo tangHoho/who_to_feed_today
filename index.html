@@ -114,6 +114,9 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 
 .pond-wrap{position:relative;margin-top:10px;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px -18px rgba(10,40,48,.6)}
 #pond{display:block;width:100%;height:330px;touch-action:manipulation;cursor:pointer}
+html{-webkit-tap-highlight-color:transparent}
+*{-webkit-tap-highlight-color:transparent}
+#pond,#pond3d,#pond3d canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;outline:none}
 #pond3d{position:relative;width:100%;height:400px;touch-action:none;cursor:grab}
 #pond3d:active{cursor:grabbing}
 #pond3d canvas{display:block;width:100%!important;height:100%!important}
@@ -611,7 +614,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.10.3';
+const APP_VER='v1.10.4';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
