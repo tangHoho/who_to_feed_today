@@ -290,6 +290,19 @@ textarea{resize:vertical;min-height:64px}
 .day.today .n{width:28px;height:28px;line-height:28px}
 #view-cal .grid{gap:3px}
 #view-cal .wk{font-size:13px}
+.lay-row{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px}
+/* 滿版（TimeTree 風）：左右貼齊螢幕、只有週與週之間的細線 */
+#view-cal.lay-full .wk,#view-cal.lay-full .grid,#view-cal.lay-lines .wk,#view-cal.lay-lines .grid{margin-inline:-16px}
+#view-cal.lay-full .grid,#view-cal.lay-lines .grid{gap:0;border-top:1px solid var(--line)}
+#view-cal.lay-full .day,#view-cal.lay-lines .day{border-radius:0;border:0;border-bottom:1px solid var(--line);background:transparent;min-height:92px;padding-top:6px}
+#view-cal.lay-full .day.blank,#view-cal.lay-lines .day.blank{border-bottom:1px solid var(--line)}
+#view-cal.lay-full .day[aria-pressed="true"],#view-cal.lay-lines .day[aria-pressed="true"]{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+#view-cal.lay-full .day.mk-fill,#view-cal.lay-lines .day.mk-fill{border-radius:0}
+/* 格線：再加直線 */
+#view-cal.lay-lines .day{border-right:1px solid var(--line)}
+#view-cal.lay-lines .grid > :nth-child(7n){border-right:0}
+#view-cal.lay-full .wk span,#view-cal.lay-lines .wk span{padding-bottom:6px}
+.day .lanes .lseg{min-width:0}
 .pills{display:flex;flex-direction:column;gap:2px;width:100%;padding:0 2px}
 .pill{display:block;font-size:11px;line-height:17px;color:#fff;border-radius:5px;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-shadow:0 1px 1px rgba(0,0,0,.2)}
 .pill.more{background:var(--muted)}
@@ -459,6 +472,7 @@ dl.prof dd{margin:0;word-break:break-word}
     <section id="view-cal" hidden>
       <div class="cal-head"><button class="iconbtn" id="prevM" aria-label="上個月">‹</button><h2 id="calTitle"></h2><button class="iconbtn" id="nextM" aria-label="下個月">›</button></div>
       <div class="mark-row"><div class="cal-legend" id="calLegend"></div><div class="seg mini" id="markSeg" role="group" aria-label="約會標記樣式"><button data-calmark="pill">色條</button><button data-calmark="fish">小魚</button><button data-calmark="fill">塗色</button><button data-calmark="dot">點點</button></div></div>
+      <div class="lay-row"><span class="tiny" style="color:var(--muted)">版面</span><div class="seg mini" id="laySeg" role="group" aria-label="行事曆版面"><button data-callay="full">滿版</button><button data-callay="lines">格線</button><button data-callay="card">卡片</button></div></div>
       <div class="wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
       <div class="grid" id="calGrid"></div>
       <div class="agenda-head"><h3 id="agendaTitle"></h3><button class="btn small" id="addEvt">＋ 新增行程</button></div>
@@ -592,7 +606,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.8.0';
+const APP_VER='v1.9.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1470,7 +1484,7 @@ function postMsg(text,sticker){
 }
 
 const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`};
-function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.calmark===(R.calMark||'pill')));$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
+function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('lay-full','lay-lines','lay-card');$('view-cal').classList.add('lay-'+LY);$('laySeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.callay===LY));$('markSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.calmark===(R.calMark||'pill')));$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
   $('calTitle').textContent=`${calY} 年 ${calM+1} 月`;
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
   for(let i=0;i<first.getDay();i++)html+='<div class="day blank"></div>';
@@ -1487,6 +1501,7 @@ function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAtt
     html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${MK0==='pill'?`style="z-index:${100-d}"`:st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${MK0==='pill'&&wkMax[wk(d)]?`<span class="lanes" style="height:${wkMax[wk(d)]*19}px">${multi.filter(e=>onDay(e,ds)&&lane[e.id]<3).map(e=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',dow=new Date(calY,calM,d).getDay(),st=ds===e.date,en=ds===evEnd(e),showT=st||dow===0||d===1;
         const wkEnd=ymd(new Date(calY,calM,Math.min(days,d+6-dow))),stop=evEnd(e)<wkEnd?evEnd(e):wkEnd,n=Math.round((parseD(stop)-parseD(ds))/864e5)+1;
         return `<span class="lseg${st?' s':''}${en?' e':''}${!st&&(dow===0||d===1)?' ws':''}${!en&&(dow===6||d===days)?' we':''}" style="background:${c};top:${lane[e.id]*19}px">${showT?`<span class="t" style="width:calc(${n*100}% + ${(n-1)*8-8}px)">${esc(e.title)}</span>`:''}</span>`}).join('')}</span>`:''}${mark}${MK0!=='pill'?ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join(''):''}</button>`}
+  {const tail=(7-(first.getDay()+days)%7)%7;for(let i=0;i<tail;i++)html+='<div class="day blank"></div>'}
   $('calGrid').innerHTML=html;
   $('agendaTitle').textContent=fmtDate(selDay)+(selDay===TODAY?' · 今天':'');
   $('addEvt').hidden=!isAdmin();
@@ -1807,6 +1822,7 @@ document.addEventListener('click',ev=>{
   if(d.envwx){setEnv('wx',d.envwx);return}
   if(d.envtod){setEnv('tod',d.envtod);return}
   if(d.bait){R.bait=d.bait;save();document.querySelectorAll('[data-bait]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderFeedInfo();toast(`改撒「${curBait().n}」`);return}
+  if(d.callay){R.calLay=d.callay;save();renderCal();return}
   if(d.calmark){R.calMark=d.calmark;save();renderCal();return}
   if(d.style2d){R.style2d=d.style2d;save();document.querySelectorAll('[data-style2d]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.style2d===R.style2d));toast({classic:'2D 切換成經典',sticker:'2D 切換成貼紙風',tank:'2D 切換成水族箱'}[R.style2d]);return}
   if(d.release){const f=fishById(d.release);if(!f)return;if(!b.dataset.armed){b.dataset.armed='1';b.textContent=`真的要放生 ${f.name} 嗎？再點一次`;setTimeout(()=>{if(b.isConnected&&b.dataset.armed){delete b.dataset.armed;b.textContent=`把 ${f.name} 放生`}},4000);return}releaseFish(f.id);return}
