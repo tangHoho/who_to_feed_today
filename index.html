@@ -471,8 +471,7 @@ dl.prof dd{margin:0;word-break:break-word}
 
     <section id="view-cal" hidden>
       <div class="cal-head"><button class="iconbtn" id="prevM" aria-label="上個月">‹</button><h2 id="calTitle"></h2><button class="iconbtn" id="nextM" aria-label="下個月">›</button></div>
-      <div class="mark-row"><div class="cal-legend" id="calLegend"></div><div class="seg mini" id="markSeg" role="group" aria-label="約會標記樣式"><button data-calmark="pill">色條</button><button data-calmark="fish">小魚</button><button data-calmark="fill">塗色</button><button data-calmark="dot">點點</button></div></div>
-      <div class="lay-row"><span class="tiny" style="color:var(--muted)">版面</span><div class="seg mini" id="laySeg" role="group" aria-label="行事曆版面"><button data-callay="full">滿版</button><button data-callay="lines">格線</button><button data-callay="card">卡片</button></div></div>
+      <div class="mark-row"><div class="cal-legend" id="calLegend"></div></div>
       <div class="wk"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
       <div class="grid" id="calGrid"></div>
       <div class="agenda-head"><h3 id="agendaTitle"></h3><button class="btn small" id="addEvt">＋ 新增行程</button></div>
@@ -606,7 +605,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.9.1';
+const APP_VER='v1.9.2';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1484,7 +1483,11 @@ function postMsg(text,sticker){
 }
 
 const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`};
-function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('lay-full','lay-lines','lay-card');$('view-cal').classList.add('lay-'+LY);$('laySeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.callay===LY));$('markSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.calmark===(R.calMark||'pill')));$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
+function openCalStyle(){const LY=R.calLay||'full',MK=R.calMark||'pill';
+  const opt=(attr,k,n,desc,cur)=>`<button class="wopt" data-${attr}="${k}" aria-pressed="${cur===k}"><span>${n}</span><small>${desc}</small></button>`;
+  openSheet(`${head('行事曆樣式')}<h2 class="sec">版面</h2><div class="wgrid">${opt('callay','full','滿版','左右貼齊、像 TimeTree',LY)}${opt('callay','lines','格線','滿版加上直線',LY)}${opt('callay','card','卡片','圓角卡片',LY)}</div>
+    <h2 class="sec">約會標記</h2><div class="wgrid">${opt('calmark','pill','色條','池名色條，多天行程一整條',MK)}${opt('calmark','fish','小魚','池子顏色的小魚',MK)}${opt('calmark','fill','塗色','整格塗上池子顏色',MK)}${opt('calmark','dot','點點','簡單的小圓點',MK)}</div>`)}
+function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('lay-full','lay-lines','lay-card');$('view-cal').classList.add('lay-'+LY);$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
   $('calTitle').textContent=`${calY} 年 ${calM+1} 月`;
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
   for(let i=0;i<first.getDay();i++)html+='<div class="day blank"></div>';
@@ -1629,6 +1632,7 @@ function openMenu(){const list=D.notifs[D.viewer]||[],un=list.filter(x=>!x.read)
     <button class="mitem" id="menuAdmin"><span>塘主資料與排行榜</span><span class="mmuted">${esc(adminName())}</span></button>
     <button class="mitem" id="menuNotif"><span>通知</span>${un?`<b class="mbadge">${un}</b>`:'<span class="mmuted">沒有新通知</span>'}</button>
     <div class="mitem static"><span>今日撒餌</span><span class="mmuted">${feedText()}</span></div>
+    <button class="mitem" id="menuCalStyle"><span>行事曆樣式</span><span class="mmuted">${{full:'滿版',lines:'格線',card:'卡片'}[R.calLay||'full']} · ${{pill:'色條',fish:'小魚',fill:'塗色',dot:'點點'}[R.calMark||'pill']}</span></button>
     <button class="mitem" id="menuEnv"><span>天氣與時間</span><span class="mmuted">${$('envText').textContent}</span></button>
     <div class="mitem static"><span>2D 風格</span><div class="seg mini" role="group" aria-label="2D 風格">${[['classic','經典'],['sticker','貼紙'],['tank','水族箱']].map(([k,n])=>`<button data-style2d="${k}" aria-pressed="${(R.style2d||'classic')===k}">${n}</button>`).join('')}</div></div>
     <button class="mitem" id="menuBait"><span>換餌</span><span class="mmuted">${curBait().n}</span></button>
@@ -1805,6 +1809,7 @@ document.addEventListener('click',ev=>{
   if(b.id==='envBtn'||b.id==='menuEnv'){openEnvSheet();return}
   if(b.id==='menuAcct'){Cloud.sheet();return}
   if(b.id==='menuAdmin'){openAdmin(false);return}
+  if(b.id==='menuCalStyle'){openCalStyle();return}
   if(b.id==='menuFarmName'){openSheet(`${head('魚塘名稱')}<div class="field"><span>魚塘名稱</span><input type="text" id="farmNameIn" maxlength="20" value="${esc(D.name)}" placeholder="例如：吼吼的漁場"></div><button class="btn mt" id="saveFarmName">儲存</button>`);setTimeout(()=>{const i=$('farmNameIn');i&&i.focus();i&&i.select()},250);return}
   if(b.id==='saveFarmName'){const v=$('farmNameIn').value.trim();if(!v){toast('請幫魚塘取個名字');return}const old=D.name;D.name=v;save();closeSheet();renderAll();renderViewer();toast(old===v?'魚塘名稱沒有變':`「${old}」改名為「${v}」`);return}
   if(d.editadmin!==undefined&&'editadmin' in d){openAdmin(true);return}
@@ -1822,8 +1827,8 @@ document.addEventListener('click',ev=>{
   if(d.envwx){setEnv('wx',d.envwx);return}
   if(d.envtod){setEnv('tod',d.envtod);return}
   if(d.bait){R.bait=d.bait;save();document.querySelectorAll('[data-bait]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderFeedInfo();toast(`改撒「${curBait().n}」`);return}
-  if(d.callay){R.calLay=d.callay;save();renderCal();return}
-  if(d.calmark){R.calMark=d.calmark;save();renderCal();return}
+  if(d.callay){R.calLay=d.callay;save();renderCal();document.querySelectorAll('[data-callay]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.callay===R.calLay));toast('版面：'+{full:'滿版',lines:'格線',card:'卡片'}[R.calLay]);return}
+  if(d.calmark){R.calMark=d.calmark;save();renderCal();document.querySelectorAll('[data-calmark]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.calmark===R.calMark));toast('標記：'+{pill:'色條',fish:'小魚',fill:'塗色',dot:'點點'}[R.calMark]);return}
   if(d.style2d){R.style2d=d.style2d;save();document.querySelectorAll('[data-style2d]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.style2d===R.style2d));toast({classic:'2D 切換成經典',sticker:'2D 切換成貼紙風',tank:'2D 切換成水族箱'}[R.style2d]);return}
   if(d.release){const f=fishById(d.release);if(!f)return;if(!b.dataset.armed){b.dataset.armed='1';b.textContent=`真的要放生 ${f.name} 嗎？再點一次`;setTimeout(()=>{if(b.isConnected&&b.dataset.armed){delete b.dataset.armed;b.textContent=`把 ${f.name} 放生`}},4000);return}releaseFish(f.id);return}
   if(d.fishpond){const [fid,pid]=d.fishpond.split(':'),f=fishById(fid);if(!f)return;let ps=pondsOf(f).slice();if(ps.includes(pid)){if(ps.length<=1){toast('至少要留在一個魚池');return}ps=ps.filter(x=>x!==pid)}else ps.push(pid);f.ponds=D.ponds.map(p=>p.id).filter(id=>ps.includes(id));f.pond=f.ponds[0];save();renderAll();const on=f.ponds.includes(pid);b.setAttribute('aria-pressed',on);b.lastChild.textContent=pondById(pid).name+(on?' ✓':'');toast(on?`${f.name} 也住進「${pondById(pid).name}」了`:`${f.name} 搬出「${pondById(pid).name}」`);return}
