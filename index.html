@@ -614,7 +614,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.10.4';
+const APP_VER='v1.10.5';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -631,7 +631,7 @@ const me=()=>isAdmin()?null:fishById(D.viewer);
 const nameOf=by=>by==='admin'?(D.owner==='我'?'塘主':'塘主 '+D.owner):(fishById(by)?.name||'已放生的魚');
 const eligible=m=>{let l=0;NEED.forEach((n,i)=>{if(m>=n)l=i});return l};
 const canEvolve=f=>f.level<4&&eligible(f.meets)>f.level;
-const lastMet=f=>{let m='';(D.events||[]).forEach(e=>{if(e.ppl&&e.ppl.includes(f.id)&&(e.rsvp||{})[f.id]!=='no'&&e.date<=TODAY&&e.date>m)m=e.date});return m};
+const lastMet=f=>{let m='';(D.events||[]).forEach(e=>{if(e.ppl&&e.ppl.includes(f.id)&&e.date<=TODAY&&e.date>m)m=e.date});return m};
 const daysSince=f=>{const lm=lastMet(f);return Math.max(0,diffDays(lm||f.joined||f.last||TODAY,TODAY))};
 const lastMetText=f=>{const lm=lastMet(f);return lm?`${fmtDate(lm)}（${daysSince(f)} 天前）`:'還沒約過'};
 const bonusToday=f=>{const b=D.feedBonus[f.id];return b&&b.date===TODAY?b.n:0};
@@ -1526,10 +1526,9 @@ function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('l
 }
 function evtCard(e){
   const mine=me();const invited=mine&&e.ppl.includes(mine.id);
-  const ppl=e.ppl.map(id=>{const f=fishById(id);if(!f)return'';const r=e.rsvp[id];return `<span class="pp" style="box-shadow:inset 0 0 0 1.5px ${pondById(f.pond)?.color||'transparent'}"><span class="dot" style="background:${f.color};width:12px;height:12px"></span>${esc(f.name)}<span class="rs ${r||'none'}">${r?RS[r]:'未回覆'}</span></span>`}).join('');
+  const ppl=e.ppl.map(id=>{const f=fishById(id);if(!f)return'';return `<span class="pp" style="box-shadow:inset 0 0 0 1.5px ${pondById(f.pond)?.color||'transparent'}"><span class="dot" style="background:${f.color};width:12px;height:12px"></span>${esc(f.name)}${mine&&mine.id===f.id?'（你）':''}</span>`}).join('');
   const PS=evPondObjs(e),pers=isPersonal(e);const ponds=pers?`<span class="ptag" style="background:${PERSONAL.color}">個人行程・待辦</span>`:PS.map(p=>`<span class="ptag" style="background:${p.color}">${esc(p.name)}</span>`).join('');const band=PS.length?`linear-gradient(90deg,${PS.map((p,k)=>`${p.color} ${k/PS.length*100}% ${(k+1)/PS.length*100}%`).join(',')})`:'var(--line)';
   let actions='';
-  if(invited&&!e.done)actions+=`<div class="seg" role="group" aria-label="回覆邀約">${Object.entries(RS).map(([k,v])=>`<button data-rsvp="${e.id}" data-v="${k}" aria-pressed="${e.rsvp[mine.id]===k}">${v}</button>`).join('')}</div>`;
   if(isAdmin()){
     actions+=`<div class="evt-actions"><button class="btn ghost small" data-edit="${e.id}">編輯</button>${!e.done&&(pers||e.date<=TODAY)?`<button class="btn small" data-done="${e.id}">${pers?'完成':'完成赴約'}</button>`:''}${e.done?`<span class="done-pill">${pers?'已完成':'已赴約'} ✓</span>`:''}</div>`;
   }else if(e.done)actions+='<span class="done-pill">已赴約 ✓</span>';
@@ -1802,7 +1801,7 @@ function saveEvent(id){
 }
 function completeEvent(id){
   const e=D.events.find(x=>x.id===id);e.done=true;const newly=[];
-  e.ppl.filter(p=>e.rsvp[p]!=='no').forEach(p=>{const f=fishById(p);if(!f)return;const was=canEvolve(f);f.meets++;if(e.date>f.last)f.last=e.date;if(!was&&canEvolve(f))newly.push(f.id)});
+  e.ppl.forEach(p=>{const f=fishById(p);if(!f)return;const was=canEvolve(f);f.meets++;if(e.date>f.last)f.last=e.date;if(!was&&canEvolve(f))newly.push(f.id)});
   save();renderAll();toast(isPersonal(e)?'完成了，辛苦了！':'赴約完成，魚吃飽了');
   if(newly.length)setTimeout(()=>promptEvolve(newly[0]),450);
 }
