@@ -177,6 +177,7 @@ html{-webkit-tap-highlight-color:transparent}
 .lb-bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden}.lb-bar i{display:block;height:100%;border-radius:999px}
 .lb-cnt{flex:none;font-size:12px;color:var(--muted)}.lb-cnt b{font-family:var(--display);font-size:18px;color:var(--ink)}
 .inv-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.mem-x{display:block;margin:-4px 0 10px auto;background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline;padding:2px 6px}
 .bk-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
 .release{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
 .ribbons{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
@@ -453,7 +454,6 @@ dl.prof dd{margin:0;word-break:break-word}
           <p>輸入塘主給你的邀請碼，加入他的魚塘。你可以看行程、回覆邀約、留言、換造型。</p>
           <div class="field"><span>邀請碼</span><input type="text" id="joinCode" maxlength="20" placeholder="例如：JOE-1010" autocapitalize="characters"></div>
           <button class="btn mt" id="joinFarm">加入魚塘</button>
-          <p class="tiny">示範邀請碼：JOE-1010（小雯的魚塘）、KAI-0314（你的魚塘）</p>
         </div>
       </div>
       <p id="homeErr" class="err" hidden></p>
@@ -608,13 +608,15 @@ function seedOther(){
     notifs:{me:[{text:'與塘主有約：下午茶，'+fmtDate(addDays(TODAY,3))+' 15:00',at:isoAgo(500),read:false}]},
     feedLog:{},feedBonus:{}};
 }
-function seedRoot(){return {v:2,farms:{demo:seed(),wenfarm:seedOther()},joined:[{farm:'demo',viewer:'admin'},{farm:'wenfarm',viewer:'me'}],cur:null}}
+function seedRoot(){return {v:2,farms:{},joined:[],cur:null}}
+const blankFarm=()=>({id:'_none',name:'',owner:'我',viewer:'admin',ponds:[],fish:[],events:[],notes:{},boards:{},notifs:{},feedLog:{},feedBonus:{}});
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));return s&&s.v===2?s:null}catch(e){return null}}
 let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
-let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
+if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
+let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.11.0';
+const APP_VER='v1.12.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1034,7 +1036,7 @@ function buildWorld(){
   seedN=7;const L=W3.layout=pondLayout(),w=W3.world;
   const DK=c=>dark?nightCol(c):c;const sky=dark?'#2E3A62':'#D3ECE4';W3.scene.background=new THREE.Color(sky);W3.scene.fog=new THREE.Fog(sky,95,210);
   W3.hemi.intensity=dark?.56:.5;W3.sun.intensity=dark?.36:.58;W3.sun.color.set(dark?'#B9C8FF':'#FFF0DC');
-  const xs=D.ponds.map(p=>L[p.id].x),zs=D.ponds.map(p=>L[p.id].z);
+  const xs=D.ponds.length?D.ponds.map(p=>L[p.id].x):[0],zs=D.ponds.length?D.ponds.map(p=>L[p.id].z):[0];
   const x0=Math.min(...xs)-POND_R-10,x1=Math.max(...xs)+POND_R+10,z0=Math.min(...zs)-POND_R-9,z1=Math.max(...zs)+POND_R+11;
   W3.bounds={x0:x0+6,x1:x1-6,z0:z0+6,z1:z1-6};
   // 島：圓角地塊挖出魚池
@@ -1623,7 +1625,7 @@ function showView(v){setTimeout(()=>alignHud(),0);if(v==='cal')requestAnimationF
 function renderHome(){
   $('homeErr').hidden=true;
   $('memberships').innerHTML=R.joined.length?R.joined.map((m,i)=>{const fm=R.farms[m.farm];if(!fm)return'';const f=m.viewer==='admin'?null:fm.fish.find(x=>x.id===m.viewer);
-    return `<button class="mem" data-enter="${i}"><canvas data-memfish="${i}" aria-hidden="true"></canvas><div><div class="nm">${esc(fm.name)}</div><div class="meta">${m.viewer==='admin'?`${fm.ponds.length} 個魚池 · ${fm.fish.length} 條魚`:`塘主是 ${esc(fm.owner)} · 你在${esc(fm.ponds.filter(p=>pondsOf(f).includes(p.id)).map(p=>p.name).join('、'))}`}</div></div><span class="role-badge ${m.viewer==='admin'?'admin':'fish'}">${m.viewer==='admin'?'塘主':'魚 · '+esc(f?.name||'')}</span></button>`}).join(''):'<div class="empty">還沒有任何身分，先開一個魚塘或加入別人的吧。</div>';
+    return `<button class="mem" data-enter="${i}"><canvas data-memfish="${i}" aria-hidden="true"></canvas><div><div class="nm">${esc(fm.name)}</div><div class="meta">${m.viewer==='admin'?`${fm.ponds.length} 個魚池 · ${fm.fish.length} 條魚`:`塘主是 ${esc(fm.owner)} · 你在${esc(fm.ponds.filter(p=>pondsOf(f).includes(p.id)).map(p=>p.name).join('、'))}`}</div></div><span class="role-badge ${m.viewer==='admin'?'admin':'fish'}">${m.viewer==='admin'?'塘主':'魚 · '+esc(f?.name||'')}</span></button><button class="mem-x" data-leave="${i}" aria-label="移除${esc(fm.name)}">移除</button>`}).join(''):'<div class="empty">還沒有魚塘。開一個自己的魚塘，或輸入塘主給你的邀請碼加入。</div>';
   requestAnimationFrame(()=>document.querySelectorAll('[data-memfish]').forEach(cv=>{const m=R.joined[cv.dataset.memfish],fm=R.farms[m.farm];const f=m.viewer==='admin'?{color:'#17323A',hat:'crown',acc:'none',thin:1}:{...fm.fish.find(x=>x.id===m.viewer),thin:1};const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);drawFish(ctx,w/2,h/2+4,30,f,0,1)}));
 }
 function enterFarm(i){const m=R.joined[i];R.cur={...m};D=R.farms[m.farm];D.viewer=m.viewer;pondSel=me()?.pond||D.ponds[0]?.id;selDay=TODAY;save();resetPond();renderAll();showView('pond');if(mode3d)focusPond(pondSel,true);
@@ -1643,7 +1645,7 @@ function openBackup(){const list=getBackups(),fmt=t=>new Date(t).toLocaleString(
   <h2 class="sec">這支手機的自動備份</h2>${list.length?list.map((x,i)=>`<div class="bk-row"><div><b>${fmt(x.at)}</b> · ${esc(x.reason)}<div class="tiny" style="color:var(--muted)">${esc(x.sum||'')}</div></div><button class="btn ghost small" data-restore="${i}">還原</button></div>`).join(''):'<div class="empty">還沒有備份</div>'}
   ${Cloud.user?`<h2 class="sec">雲端備份</h2>${['beforeReset','daily'].filter(k=>cb[k]).map(k=>`<div class="bk-row"><div><b>${k==='daily'?'雲端每日備份':'雲端重設前備份'}</b>${cb[k+'At']?' · '+fmt(cb[k+'At']):''}<div class="tiny" style="color:var(--muted)">${esc(summary(JSON.parse(cb[k])))}</div></div><button class="btn ghost small" data-cloudrestore="${k}">還原</button></div>`).join('')||'<div class="empty">雲端還沒有備份</div>'}`:''}
   <h2 class="sec">備份檔</h2><div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn ghost small" id="exportBk">下載備份檔</button><label class="btn ghost small" style="cursor:pointer">從備份檔還原<input type="file" id="importBk" accept="application/json,.json" hidden></label></div>
-  <div class="release"><button class="btn danger" style="width:100%" id="resetDemo">重設成示範資料</button><p class="tiny" style="color:var(--muted);text-align:center">會清掉這個帳號的全部魚塘資料，換成示範資料。重設前會自動備份一份。</p></div>`)}
+  <div class="release"><button class="btn danger" style="width:100%" id="resetDemo">清除全部資料</button><p class="tiny" style="color:var(--muted);text-align:center">會清掉這個帳號的全部魚塘資料。清除前會自動備份一份。</p></div>`)}
 function homeErr(t){$('homeErr').textContent=t;$('homeErr').hidden=false}
 function createFarm(){const name=$('newFarm').value.trim()||'我的新魚塘';const id='f'+Date.now();
   R.farms[id]={id,name,owner:'我',viewer:'admin',ponds:[{id:'p1',name:'第一個魚池',color:POND_COLORS[0]}],fish:[],events:[],notes:{},boards:{p1:[]},notifs:{},feedLog:{},feedBonus:{}};
@@ -1913,7 +1915,9 @@ document.addEventListener('click',ev=>{
   if(b.id==='bell'){openMenu();return}
   if(b.id==='menuNotif'){const list=D.notifs[D.viewer]||[];openSheet(`${head('通知')}${list.length?list.map(n=>`<div class="notif ${n.read?'':'unread'}"><div><div>${esc(n.text.replace(/^[^：]*約你：/,'與塘主有約：'))}</div><div class="when">${ago(n.at)}</div></div></div>`).join(''):'<div class="empty mt">沒有新通知</div>'}`);list.forEach(n=>n.read=true);save();renderViewer();return}
   if(b.id==='menuBackup'){openBackup();return}
-  if(b.id==='resetDemo'){if(b.dataset.armed){backupLocal('重設前自動備份');R=seedRoot();R.resetAt=Date.now();D=R.farms.demo;save();resetPond();closeSheet();showView('home');renderAll();toast('已重設成示範資料，原本的資料在「備份與還原」裡')}else{b.dataset.armed='1';b.textContent='確定要清掉全部資料嗎？再點一次'}return}
+  if(d.leave!==undefined){const m=R.joined[+d.leave];if(!m)return;const fm=R.farms[m.farm];if(!b.dataset.armed){b.dataset.armed='1';b.textContent=m.viewer==='admin'?'刪除魚塘？再點一次':'確定離開？再點一次';setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent='移除'}},4000);return}
+    backupLocal('移除魚塘前自動備份');R.joined.splice(+d.leave,1);if(m.viewer==='admin'||!R.joined.some(x=>x.farm===m.farm))delete R.farms[m.farm];if(R.cur&&R.cur.farm===m.farm)R.cur=null;D=R.farms[R.joined[0]?.farm]||blankFarm();save();renderViewer();toast(`已移除「${fm?.name||''}」，需要的話可以到「備份與還原」找回`);return}
+  if(b.id==='resetDemo'){if(b.dataset.armed){backupLocal('重設前自動備份');R=seedRoot();R.resetAt=Date.now();D=blankFarm();save();resetPond();closeSheet();showView('home');renderAll();toast('已清除，原本的資料在「備份與還原」裡')}else{b.dataset.armed='1';b.textContent='確定要清掉全部資料嗎？再點一次'}return}
   if(d.restore!==undefined){const bk=getBackups()[+d.restore];if(!bk)return;if(!b.dataset.armed){b.dataset.armed='1';b.textContent='再點一次還原';return}restoreRoot(bk.data,'還原前自動備份');return}
   if(d.cloudrestore){const v=Cloud.backups&&Cloud.backups[d.cloudrestore];if(!v)return;if(!b.dataset.armed){b.dataset.armed='1';b.textContent='再點一次還原';return}restoreRoot(v,'還原前自動備份');return}
   if(b.id==='exportBk'){const blob=new Blob([JSON.stringify(R,null,1)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`今天餵誰備份-${TODAY}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('已下載備份檔');return}
@@ -1948,7 +1952,9 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
     try{const snap=await this.ref().get(),data=snap.exists?snap.data():null;let remote=null;if(data){this.lastSaved=data.save;this.backups={daily:data.daily,dailyAt:data.dailyAt,beforeReset:data.beforeReset,beforeResetAt:data.beforeResetAt};this.dailyDate=data.dailyDate}try{remote=data&&data.save?JSON.parse(data.save):null}catch(_){}
       if(remote&&remote.v===2){const uid=this.user.uid;
         let takeRemote=R.syncUid!==uid?confirm('這個 Google 帳號已經有雲端存檔。\n\n按「確定」用雲端存檔（這台手機目前的資料會被取代）\n按「取消」用這台手機的資料覆蓋雲端'):(remote.updatedAt||0)>(R.updatedAt||0);
-        if(takeRemote&&remote.resetAt&&(remote.resetAt>(R.resetAt||0))&&bodyOf(remote)!==bodyOf(R)&&!confirm('雲端的存檔是剛被「重設成示範資料」的版本。\n\n按「確定」用雲端的示範資料（這台手機的資料會先自動備份）\n按「取消」保留這台手機的資料並上傳到雲端'))takeRemote=false;
+        const score=x=>{try{return Object.values(x.farms||{}).reduce((a,f)=>a+(f.ponds||[]).length+(f.fish||[]).length*2+(f.events||[]).length*2,0)}catch(e){return 0}};
+        if(!takeRemote&&score(remote)>score(R)&&bodyOf(remote)!==bodyOf(R)&&confirm(`雲端存檔的資料比這支手機多：\n雲端：${summary(remote)}\n這支手機：${summary(R)||'（空）'}\n\n按「確定」改用雲端存檔（手機目前的資料會先自動備份）\n按「取消」用手機的資料覆蓋雲端`))takeRemote=true;
+        if(takeRemote&&remote.resetAt&&(remote.resetAt>(R.resetAt||0))&&bodyOf(remote)!==bodyOf(R)&&!confirm('雲端的存檔是剛被「清除全部資料」的版本。\n\n按「確定」用雲端的空資料（這台手機的資料會先自動備份）\n按「取消」保留這台手機的資料並上傳到雲端'))takeRemote=false;
         if(takeRemote){backupLocal('載入雲端前自動備份');remote.syncUid=uid;localStorage.setItem(KEY,JSON.stringify(remote));toast('已載入雲端存檔');setTimeout(()=>location.reload(),600);return}}
       await this.push();if(manual)toast('已同步')}catch(e){this.syncError(e)}},
   async push(){if(!this.user)return;clearTimeout(this.timer);this.timer=null;this.busy=true;
