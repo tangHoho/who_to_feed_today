@@ -154,6 +154,7 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .page .shade{position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.28),rgba(0,0,0,0) 55%);opacity:0;animation:shade .7s forwards}
 @keyframes shade{50%{opacity:1}100%{opacity:0}}
 .pg-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.release{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
 .ribbons{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .ribbon{color:#fff;font-size:12px;font-weight:700;padding:3px 12px 3px 10px;border-radius:0 999px 999px 0;margin-left:-26px}
 .chip[data-fishpond][aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:700}
@@ -544,7 +545,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.1.0';
+const APP_VER='v1.2.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -558,7 +559,7 @@ const isAdmin=()=>D.viewer==='admin';
 function boardUnread(pid){const seen=((D.boardSeen||{})[D.viewer]||{})[pid]||'';return (D.boards[pid]||[]).filter(m=>m.by!==D.viewer&&m.at>seen).length}
 function markBoardSeen(){D.boardSeen=D.boardSeen||{};const v=D.boardSeen[D.viewer]=D.boardSeen[D.viewer]||{};const ms=D.boards[pondSel]||[];const last=ms.reduce((a,m)=>m.at>a?m.at:a,v[pondSel]||'');if(last&&last!==v[pondSel]){v[pondSel]=last;save()}}
 const me=()=>isAdmin()?null:fishById(D.viewer);
-const nameOf=by=>by==='admin'?(D.owner==='我'?'塘主':'塘主 '+D.owner):(fishById(by)?.name||'？');
+const nameOf=by=>by==='admin'?(D.owner==='我'?'塘主':'塘主 '+D.owner):(fishById(by)?.name||'已放生的魚');
 const eligible=m=>{let l=0;NEED.forEach((n,i)=>{if(m>=n)l=i});return l};
 const canEvolve=f=>f.level<4&&eligible(f.meets)>f.level;
 const daysSince=f=>Math.max(0,diffDays(f.last,TODAY));
@@ -1567,6 +1568,13 @@ function openPondForm(id){const p=id?pondById(id):null;const cur=p?p.color:POND_
 function savePond(id){const name=$('pName').value.trim();if(!name){toast('請幫魚池取個名字');return}const col=document.querySelector('[data-pcol][aria-pressed="true"]')?.dataset.pcol||POND_COLORS[0];
   if(id){const p=pondById(id),old=p.name;p.name=name;p.color=col;save();closeSheet();renderAll();toast(old===name?'魚池已更新':`「${old}」改名為「${name}」`);return}
   const nid='p'+Date.now();D.ponds.push({id:nid,name,color:col});D.boards[nid]=[];pondSel=nid;save();closeSheet();resetPond();renderAll();if(mode3d)focusPond(nid);toast(`建好「${name}」了`)}
+function releaseFish(fid){const f=fishById(fid);if(!f)return;const name=f.name;
+  D.fish=D.fish.filter(x=>x.id!==fid);
+  D.events.forEach(e=>{e.ppl=e.ppl.filter(x=>x!==fid);if(e.rsvp)delete e.rsvp[fid]});
+  ['notes','feedBonus','feedLog','notifs'].forEach(k=>{if(D[k])delete D[k][fid]});
+  R.joined=R.joined.filter(m=>!(m.farm===D.id&&m.viewer===fid));
+  delete PV.cache[fid];if(sim.ents)delete sim.ents[fid];hidePoke();
+  save();closeSheet();renderAll();toast(`${name} 游走了，掰掰～`)}
 const onlyIn=pid=>D.fish.filter(f=>pondsOf(f).length===1&&pondsOf(f)[0]===pid);
 function deletePond(id,b){if(onlyIn(id).length){toast('有魚只住在這個池子，先把牠們搬到別的池才能刪除');return}if(D.ponds.length<=1){toast('至少要留一個魚池');return}
   if(!b.dataset.armed){b.dataset.armed='1';b.textContent='再點一次確定刪除';return}
@@ -1638,7 +1646,7 @@ function openFish(id,keepEdit){curFish=id;
     <div class="stats"><div class="stat"><div class="k">飽足感</div><div class="v" style="color:${satColor(s)}">${s}% · ${satLabel(s)}</div><div class="bar"><i style="width:${s}%;background:${satColor(s)}"></i></div></div><div class="stat"><div class="k">上次見面</div><div class="v">${fmtDate(f.last)}</div><div class="k">${daysSince(f)} 天前</div></div><div class="stat"><div class="k">約過</div><div class="v">${f.meets} 次</div></div><div class="stat"><div class="k">下一級</div><div class="v">${f.level>=4?'已是魚王':nxt>0?`還差 ${nxt} 次`:'已達標'}</div></div></div>
     <h2 class="sec">小檔案</h2>${prof}
     ${style}
-    <h2 class="sec">最近的約</h2>${hist.length?hist.map(e=>`<div class="notif" style="padding:8px 0"><div><div>${esc(e.title)}</div><div class="when">${fmtDate(e.date)} · ${esc(e.loc)}</div></div></div>`).join(''):'<div class="empty">還沒有赴約紀錄</div>'}`);
+    <h2 class="sec">最近的約</h2>${hist.length?hist.map(e=>`<div class="notif" style="padding:8px 0"><div><div>${esc(e.title)}</div><div class="when">${fmtDate(e.date)} · ${esc(e.loc)}</div></div></div>`).join(''):'<div class="empty">還沒有赴約紀錄</div>'}${isAdmin()?`<div class="release"><button class="btn danger" style="width:100%" data-release="${f.id}">把 ${esc(f.name)} 放生</button><p class="tiny" style="color:var(--muted);text-align:center">放生後會從所有魚池、行程和圖鑑移除，無法復原。</p></div>`:''}`);
   previews=[{cv:$('heroFish'),get:()=>fishById(id)}];attachSpin(previews[0]);
 }
 function promptEvolve(id){
@@ -1714,6 +1722,7 @@ document.addEventListener('click',ev=>{
   if(d.bait){R.bait=d.bait;save();document.querySelectorAll('[data-bait]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderFeedInfo();toast(`改撒「${curBait().n}」`);return}
   if(d.calmark){R.calMark=d.calmark;save();renderCal();return}
   if(d.style2d){R.style2d=d.style2d;save();document.querySelectorAll('[data-style2d]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.style2d===R.style2d));toast({classic:'2D 切換成經典',sticker:'2D 切換成貼紙風',tank:'2D 切換成水族箱'}[R.style2d]);return}
+  if(d.release){const f=fishById(d.release);if(!f)return;if(!b.dataset.armed){b.dataset.armed='1';b.textContent=`真的要放生 ${f.name} 嗎？再點一次`;setTimeout(()=>{if(b.isConnected&&b.dataset.armed){delete b.dataset.armed;b.textContent=`把 ${f.name} 放生`}},4000);return}releaseFish(f.id);return}
   if(d.fishpond){const [fid,pid]=d.fishpond.split(':'),f=fishById(fid);if(!f)return;let ps=pondsOf(f).slice();if(ps.includes(pid)){if(ps.length<=1){toast('至少要留在一個魚池');return}ps=ps.filter(x=>x!==pid)}else ps.push(pid);f.ponds=D.ponds.map(p=>p.id).filter(id=>ps.includes(id));f.pond=f.ponds[0];save();renderAll();const on=f.ponds.includes(pid);b.setAttribute('aria-pressed',on);b.lastChild.textContent=pondById(pid).name+(on?' ✓':'');toast(on?`${f.name} 也住進「${pondById(pid).name}」了`:`${f.name} 搬出「${pondById(pid).name}」`);return}
   if(d.selpond){const bs=[...document.querySelectorAll(`input[data-pp="${d.selpond}"]`)],all=bs.every(x=>x.checked);bs.forEach(x=>{x.checked=!all;document.querySelectorAll(`input[name=fPpl][value="${x.value}"]`).forEach(y=>y.checked=!all)});b.textContent=all?'全選':'取消全選';return}
   if(d.ppfx){const p=pondById(styleId);p.pfx=d.ppfx;styleChanged();openPondStyle(styleId,true);return}
