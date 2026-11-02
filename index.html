@@ -514,6 +514,11 @@ const cfRows=P=>(P.custom||[]).filter(c=>c.k).map(c=>`<dt>${esc(c.k)}</dt><dd>${
 const cfRow=(k,v,ph)=>`<div class="cf-row"><input type="text" class="cf-k" maxlength="8" value="${esc(k)}" placeholder="欄位名稱" aria-label="欄位名稱"><input type="text" class="cf-v" maxlength="40" value="${esc(v)}" placeholder="${esc(ph||'內容')}" aria-label="內容"><button type="button" class="cf-del" data-cfdel aria-label="刪除這個欄位">✕</button></div>`;
 const evPonds=e=>{const v=e.via&&Object.keys(e.via).length?e.ppl.flatMap(id=>e.via[id]||[]):e.ppl.flatMap(id=>pondsOf(fishById(id)));return D.ponds.map(p=>p.id).filter(id=>v.includes(id))};
 const pickedIn=(e,fid,pid)=>e.ppl.includes(fid)&&(e.via&&Object.keys(e.via).length?(e.via[fid]||[]).includes(pid):true);
+const PERSONAL={id:'__me',name:'個人',color:'#7A6F9B'};
+const isPersonal=e=>!e.ppl||!e.ppl.length;
+const EVS=()=>isAdmin()?D.events:D.events.filter(e=>!isPersonal(e));
+const evPondObjs=e=>isPersonal(e)?[PERSONAL]:evPonds(e).map(pondById).filter(Boolean);
+const psOf=list=>{const a=[...new Set(list.filter(e=>!isPersonal(e)).flatMap(evPonds))].map(pondById).filter(Boolean);if(list.some(isPersonal))a.push(PERSONAL);return a};
 const evEnd=e=>e.endDate&&e.endDate>e.date?e.endDate:e.date;
 const isMulti=e=>evEnd(e)!==e.date;
 const onDay=(e,ds)=>e.date<=ds&&ds<=evEnd(e);
@@ -546,7 +551,9 @@ function seed(){
     E('e6',5,'14:00','KTV 歡唱','西門町',['kai','wen','tiger'],{wen:'yes'}),
     E('e7',9,'11:00','週末野餐','大稻埕碼頭',['lily','pei','wen','wang'],{}),
     E('e8',13,'19:30','桌遊夜','桌遊店',['kai','kevin','max'],{kai:'yes'}),
-    Object.assign(E('e9',16,'08:30','東京五天四夜','東京',['kai','wen'],{kai:'yes',wen:'maybe'}),{endDate:addDays(TODAY,20),endTime:'21:00'})
+    Object.assign(E('e9',16,'08:30','東京五天四夜','東京',['kai','wen'],{kai:'yes',wen:'maybe'}),{endDate:addDays(TODAY,20),endTime:'21:00'}),
+    Object.assign(E('e10',1,'09:00','繳信用卡費','',[]),{allDay:true}),
+    E('e11',4,'15:00','剪頭髮','中山站',[])
   ];
   ['KAI-0314','WEN-0802','TIGER-1120','KEVIN-0105','PEI-0618','WANG-0930','MAX-0422','LILY-1209'].forEach((c,i)=>fish[i].code=c);
   return {
@@ -584,7 +591,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.6.0';
+const APP_VER='v1.7.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1462,46 +1469,46 @@ function postMsg(text,sticker){
 }
 
 const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`};
-function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.calmark===(R.calMark||'pill')));$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('');
+function renderCal(){$('markSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.calmark===(R.calMark||'pill')));$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
   $('calTitle').textContent=`${calY} 年 ${calM+1} 月`;
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
   for(let i=0;i<first.getDay();i++)html+='<div class="day blank"></div>';
   const MK0=R.calMark||'pill',mStart=ymd(first),mEnd=ymd(new Date(calY,calM,days));
-  const multi=MK0==='pill'?D.events.filter(e=>isMulti(e)&&e.date<=mEnd&&evEnd(e)>=mStart).sort((a,b)=>a.date.localeCompare(b.date)||dayCount(b)-dayCount(a)):[];
+  const multi=MK0==='pill'?EVS().filter(e=>isMulti(e)&&e.date<=mEnd&&evEnd(e)>=mStart).sort((a,b)=>a.date.localeCompare(b.date)||dayCount(b)-dayCount(a)):[];
   const laneEnd=[],lane={};multi.forEach(e=>{let k=laneEnd.findIndex(x=>x<e.date);if(k<0){k=laneEnd.length;laneEnd.push('')}laneEnd[k]=evEnd(e);lane[e.id]=k});const wk=d=>Math.floor((first.getDay()+d-1)/7),wkMax={};
   for(let d=1;d<=days;d++){const ds=ymd(new Date(calY,calM,d));multi.forEach(e=>{if(onDay(e,ds)&&lane[e.id]<3)wkMax[wk(d)]=Math.max(wkMax[wk(d)]||0,lane[e.id]+1)})}
-  for(let d=1;d<=days;d++){const ds=ymd(new Date(calY,calM,d));const ev=D.events.filter(e=>onDay(e,ds));
-    const ps=[...new Set((MK0==='pill'?ev.filter(e=>!isMulti(e)):ev).flatMap(evPonds))].map(pondById).filter(Boolean),MK=R.calMark||'pill';let mark='',st='';
+  for(let d=1;d<=days;d++){const ds=ymd(new Date(calY,calM,d));const ev=EVS().filter(e=>onDay(e,ds));
+    const ps=psOf(MK0==='pill'?ev.filter(e=>!isMulti(e)):ev),MK=R.calMark||'pill';let mark='',st='';
     if(ev.length&&ps.length){if(MK==='dot')mark=`<span class="dots">${ps.slice(0,3).map(p=>`<span class="dot" style="background:${p.color};width:9px;height:9px"></span>`).join('')}</span>`;
       if(MK==='pill')mark=`<span class="pills">${ps.slice(0,2).map(p=>`<span class="pill" style="background:${p.color}">${esc(p.name.replace(/池$/,'').slice(0,2))}</span>`).join('')}${ps.length>2?`<span class="pill more">+${ps.length-2}</span>`:''}</span>`;
       if(MK==='fish')mark=`<span class="fishes">${ps.slice(0,3).map(p=>`<svg viewBox="0 0 20 12" width="19" height="11" aria-hidden="true"><path d="M3 6 L0 1 L0 11Z" fill="${p.color}"/><ellipse cx="11" cy="6" rx="8" ry="5" fill="${p.color}"/><circle cx="15" cy="5" r="1.3" fill="#fff"/></svg>`).join('')}</span>${ev.length>1?`<span class="cnt">${ev.length} 個約</span>`:''}`;
       if(MK==='fill'){st=`style="background:linear-gradient(135deg,${ps.map((p,k)=>`${hexA(p.color,.34)} ${k/ps.length*100}% ${(k+1)/ps.length*100}%`).join(',')});border-color:${ps[0].color}"`;mark=`<span class="cnt solid" style="background:${ps[0].color}">${ev.length}</span>`}}
-    html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${MK0==='pill'?`style="z-index:${100-d}"`:st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${MK0==='pill'&&wkMax[wk(d)]?`<span class="lanes" style="height:${wkMax[wk(d)]*19}px">${multi.filter(e=>onDay(e,ds)&&lane[e.id]<3).map(e=>{const c=pondById(evPonds(e)[0])?.color||'var(--koi)',dow=new Date(calY,calM,d).getDay(),st=ds===e.date,en=ds===evEnd(e),showT=st||dow===0||d===1;
+    html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${MK0==='pill'?`style="z-index:${100-d}"`:st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${MK0==='pill'&&wkMax[wk(d)]?`<span class="lanes" style="height:${wkMax[wk(d)]*19}px">${multi.filter(e=>onDay(e,ds)&&lane[e.id]<3).map(e=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',dow=new Date(calY,calM,d).getDay(),st=ds===e.date,en=ds===evEnd(e),showT=st||dow===0||d===1;
         const wkEnd=ymd(new Date(calY,calM,Math.min(days,d+6-dow))),stop=evEnd(e)<wkEnd?evEnd(e):wkEnd,n=Math.round((parseD(stop)-parseD(ds))/864e5)+1;
-        return `<span class="lseg${st?' s':''}${en?' e':''}${!st&&(dow===0||d===1)?' ws':''}${!en&&(dow===6||d===days)?' we':''}" style="background:${c};top:${lane[e.id]*19}px">${showT?`<span class="t" style="width:calc(${n*100}% + ${(n-1)*8-8}px)">${esc(e.title)}</span>`:''}</span>`}).join('')}</span>`:''}${mark}${MK0!=='pill'?ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=pondById(evPonds(e)[0])?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join(''):''}</button>`}
+        return `<span class="lseg${st?' s':''}${en?' e':''}${!st&&(dow===0||d===1)?' ws':''}${!en&&(dow===6||d===days)?' we':''}" style="background:${c};top:${lane[e.id]*19}px">${showT?`<span class="t" style="width:calc(${n*100}% + ${(n-1)*8-8}px)">${esc(e.title)}</span>`:''}</span>`}).join('')}</span>`:''}${mark}${MK0!=='pill'?ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join(''):''}</button>`}
   $('calGrid').innerHTML=html;
   $('agendaTitle').textContent=fmtDate(selDay)+(selDay===TODAY?' · 今天':'');
   $('addEvt').hidden=!isAdmin();
-  const ev=D.events.filter(e=>onDay(e,selDay)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const ev=EVS().filter(e=>onDay(e,selDay)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   $('agenda').innerHTML=ev.length?ev.map(evtCard).join(''):`<div class="empty">這天沒有約，魚塘很安靜。${isAdmin()?'<br>點「新增行程」約一條魚吧。':''}</div>`;
 }
 function evtCard(e){
   const mine=me();const invited=mine&&e.ppl.includes(mine.id);
   const ppl=e.ppl.map(id=>{const f=fishById(id);if(!f)return'';const r=e.rsvp[id];return `<span class="pp" style="box-shadow:inset 0 0 0 1.5px ${pondById(f.pond)?.color||'transparent'}"><span class="dot" style="background:${f.color};width:12px;height:12px"></span>${esc(f.name)}<span class="rs ${r||'none'}">${r?RS[r]:'未回覆'}</span></span>`}).join('');
-  const PS=evPonds(e).map(pondById).filter(Boolean);const ponds=PS.map(p=>`<span class="ptag" style="background:${p.color}">${esc(p.name)}</span>`).join('');const band=PS.length?`linear-gradient(90deg,${PS.map((p,k)=>`${p.color} ${k/PS.length*100}% ${(k+1)/PS.length*100}%`).join(',')})`:'var(--line)';
+  const PS=evPondObjs(e),pers=isPersonal(e);const ponds=pers?`<span class="ptag" style="background:${PERSONAL.color}">個人行程・待辦</span>`:PS.map(p=>`<span class="ptag" style="background:${p.color}">${esc(p.name)}</span>`).join('');const band=PS.length?`linear-gradient(90deg,${PS.map((p,k)=>`${p.color} ${k/PS.length*100}% ${(k+1)/PS.length*100}%`).join(',')})`:'var(--line)';
   let actions='';
   if(invited&&!e.done)actions+=`<div class="seg" role="group" aria-label="回覆邀約">${Object.entries(RS).map(([k,v])=>`<button data-rsvp="${e.id}" data-v="${k}" aria-pressed="${e.rsvp[mine.id]===k}">${v}</button>`).join('')}</div>`;
   if(isAdmin()){
-    actions+=`<div class="evt-actions"><button class="btn ghost small" data-edit="${e.id}">編輯</button>${!e.done&&e.date<=TODAY?`<button class="btn small" data-done="${e.id}">完成赴約</button>`:''}${e.done?'<span class="done-pill">已赴約 ✓</span>':''}</div>`;
+    actions+=`<div class="evt-actions"><button class="btn ghost small" data-edit="${e.id}">編輯</button>${!e.done&&(pers||e.date<=TODAY)?`<button class="btn small" data-done="${e.id}">${pers?'完成':'完成赴約'}</button>`:''}${e.done?`<span class="done-pill">${pers?'已完成':'已赴約'} ✓</span>`:''}</div>`;
   }else if(e.done)actions+='<span class="done-pill">已赴約 ✓</span>';
   const note=isAdmin()&&D.notes[e.id]?`<div class="secret"><b>私人備註</b><span>${esc(D.notes[e.id])}</span></div>`:'';
-  return `<article class="evt" style="--band:${band};background:linear-gradient(180deg,${PS[0]?hexA(PS[0].color,.1):'transparent'},transparent 60%),var(--surface)"><div class="evt-band" aria-hidden="true"></div><div class="evt-top"><div class="evt-time" style="color:${PS[0]?.color||'inherit'}">${isMulti(e)?(selDay===e.date?(e.allDay?'出發':e.time):selDay===evEnd(e)?(e.allDay||!e.endTime?'回程':e.endTime):'整天'):(e.allDay?'整天':e.time)}</div><div style="min-width:0"><div class="evt-title">${esc(e.title)}${isMulti(e)?`<span class="evt-days" style="background:${PS[0]?.color||'var(--koi)'}">第 ${Math.round((parseD(selDay)-parseD(e.date))/864e5)+1} / ${dayCount(e)} 天</span>`:''}</div>${isMulti(e)?`<div class="evt-range">${esc(whenText(e))}</div>`:''}<div class="evt-loc">${esc(e.loc||'地點未定')}</div><div class="ptags">${ponds}</div></div></div><div class="ppl">${ppl}</div>${note}${actions}</article>`;
+  return `<article class="evt" style="--band:${band};background:linear-gradient(180deg,${PS[0]?hexA(PS[0].color,.1):'transparent'},transparent 60%),var(--surface)"><div class="evt-band" aria-hidden="true"></div><div class="evt-top"><div class="evt-time" style="color:${PS[0]?.color||'inherit'}">${isMulti(e)?(selDay===e.date?(e.allDay?'出發':e.time):selDay===evEnd(e)?(e.allDay||!e.endTime?'回程':e.endTime):'整天'):(e.allDay?'整天':e.time)}</div><div style="min-width:0"><div class="evt-title"${pers&&e.done?' style="text-decoration:line-through;opacity:.6"':''}>${esc(e.title)}${isMulti(e)?`<span class="evt-days" style="background:${PS[0]?.color||'var(--koi)'}">第 ${Math.round((parseD(selDay)-parseD(e.date))/864e5)+1} / ${dayCount(e)} 天</span>`:''}</div>${isMulti(e)?`<div class="evt-range">${esc(whenText(e))}</div>`:''}${pers&&!e.loc?'':`<div class="evt-loc">${esc(e.loc||'地點未定')}</div>`}<div class="ptags">${ponds}</div></div></div><div class="ppl">${ppl}</div>${note}${actions}</article>`;
 }
 
 const AP=()=>D.adminProfile||(D.adminProfile={nick:'',bday:'',intro:'',custom:[]});
 const adminName=()=>AP().nick||(D.owner==='我'?'塘主':D.owner);
 function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
-  const done=D.events.filter(e=>e.done),month=done.filter(e=>e.date.slice(0,7)===TODAY.slice(0,7)).length,up=D.events.filter(e=>!e.done&&evEnd(e)>=TODAY).length;
+  const done=D.events.filter(e=>e.done&&!isPersonal(e)),month=done.filter(e=>e.date.slice(0,7)===TODAY.slice(0,7)).length,up=D.events.filter(e=>!e.done&&!isPersonal(e)&&evEnd(e)>=TODAY).length;
   const met=D.fish.filter(f=>f.meets>0),far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
   const rank=[...D.fish].sort((a,b)=>b.meets-a.meets||daysSince(a)-daysSince(b)).slice(0,10),mx=Math.max(1,...rank.map(f=>f.meets));
   const medal=i=>['🥇','🥈','🥉'][i]||`<span class="lb-n">${i+1}</span>`;
@@ -1516,8 +1523,8 @@ function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
 function saveAdmin(){const P=AP();P.nick=$('aNick').value.trim();P.bday=$('aBday').value.trim();P.intro=$('aIntro').value.trim();P.custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);save();openAdmin(false);toast('塘主資料已儲存')}
 function renderStats(){
   const met=D.fish.filter(f=>f.meets>0),most=[...met].sort((a,b)=>b.meets-a.meets)[0],far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
-  const month=D.events.filter(e=>e.done&&e.date.slice(0,7)===TODAY.slice(0,7)).length;
-  const next=D.events.filter(e=>e.date>=TODAY&&!e.done).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
+  const month=D.events.filter(e=>e.done&&!isPersonal(e)&&e.date.slice(0,7)===TODAY.slice(0,7)).length;
+  const next=D.events.filter(e=>e.date>=TODAY&&!e.done&&!isPersonal(e)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
   $('dexStats').innerHTML=`<div class="stat"><div class="k">最常約</div><div class="v">${most?`${esc(most.name)} · ${most.meets} 次`:'-'}</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div><div class="stat"><div class="k">本月已赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">下一個約</div><div class="v">${next?fmtDate(next.date):'-'}</div></div>`;
 }
 let pageIdx=0,bookPrev=null,flipping=false;
@@ -1724,7 +1731,7 @@ function openEventForm(id){
     <div class="row" style="gap:10px;flex-wrap:wrap;margin:12px 0 6px"><label class="check"><input type="checkbox" id="fMulti" ${isMulti(e)?'checked':''}>多天行程（例如出國）</label><label class="check"><input type="checkbox" id="fAllDay" ${e.allDay?'checked':''}>不指定時間</label></div>
     <div class="row" id="fEndRow" ${isMulti(e)?'':'hidden'}><div class="field" style="flex:1"><span>回來日期</span><input type="date" id="fEndDate" value="${isMulti(e)?evEnd(e):''}" min="${e.date}"></div><div class="field" style="flex:1" id="fEndTimeWrap" ${e.allDay?'hidden':''}><span>時間（選填）</span><input type="time" id="fEndTime" value="${e.endTime||''}"></div></div>
     <div class="field"><span>地點</span><input type="text" id="fLoc" maxlength="40" value="${esc(e.loc)}" placeholder="可以晚點再填"></div>
-    <div class="field"><span>約哪些魚（可跨池）</span>${D.ponds.map(p=>`<div class="pick-pond"><div><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${fishIn(p.id).length?`<button type="button" class="selall" data-selpond="${p.id}">${fishIn(p.id).every(f=>pickedIn(e,f.id,p.id))?'取消全選':'全選'}</button>`:''}</div><div class="opts">${fishIn(p.id).map(f=>`<label class="check"><input type="checkbox" name="fPpl" data-pp="${p.id}" value="${f.id}" ${pickedIn(e,f.id,p.id)?'checked':''}><span class="dot" style="background:${f.color}"></span>${esc(f.name)}</label>`).join('')}</div></div>`).join('')}</div>
+    <div class="field"><span>約哪些魚（可跨池；都不選就是塘主的個人行程或待辦）</span>${D.ponds.map(p=>`<div class="pick-pond"><div><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${fishIn(p.id).length?`<button type="button" class="selall" data-selpond="${p.id}">${fishIn(p.id).every(f=>pickedIn(e,f.id,p.id))?'取消全選':'全選'}</button>`:''}</div><div class="opts">${fishIn(p.id).map(f=>`<label class="check"><input type="checkbox" name="fPpl" data-pp="${p.id}" value="${f.id}" ${pickedIn(e,f.id,p.id)?'checked':''}><span class="dot" style="background:${f.color}"></span>${esc(f.name)}</label>`).join('')}</div></div>`).join('')}</div>
     <div class="field"><span>私人備註（只有你看得到）</span><textarea id="fNote" maxlength="200" placeholder="例如：記得帶他上次借的書">${esc(id?D.notes[id]||'':'')}</textarea></div>
     <p id="fErr" style="color:var(--bad);font-size:13px;margin:8px 0 0" hidden></p>
     <div class="row mt"><button class="btn" style="flex:1" data-saveevt="${id||''}">${id?'儲存變更':'建立並通知被約的魚'}</button>${id?`<button class="btn danger" data-delevt="${id}">刪除</button>`:''}</div>`);
@@ -1738,19 +1745,18 @@ function saveEvent(id){
   if(!date){err.textContent='請選日期。';err.hidden=false;return}
   if(multi&&!endDate){err.textContent='請選回來的日期。';err.hidden=false;return}
   if(multi&&endDate<date){err.textContent='回來日期不能早於出發日期。';err.hidden=false;return}
-  if(!ppl.length){err.textContent='至少要約一條魚。';err.hidden=false;return}
   let e;
   if(id){e=D.events.find(x=>x.id===id);const added=ppl.filter(p=>!e.ppl.includes(p));Object.assign(e,{title,date,time,loc,ppl,via,allDay,endDate:multi&&endDate>date?endDate:'',endTime:multi&&endDate>date?endTime:''});Object.keys(e.rsvp).forEach(k=>{if(!ppl.includes(k))delete e.rsvp[k]});
     ppl.forEach(p=>notify(p,added.includes(p)?`與塘主有約：${title}，${whenText(e)}`:`行程有更新：${title}，${whenText(e)}`))}
   else{e={id:'e'+Date.now(),title,date,time,loc,ppl,via,rsvp:{},done:false,allDay,endDate:multi&&endDate>date?endDate:'',endTime:multi&&endDate>date?endTime:''};D.events.push(e);ppl.forEach(p=>notify(p,`與塘主有約：${title}，${whenText(e)}`))}
   if(note)D.notes[e.id]=note;else delete D.notes[e.id];
   selDay=date;const d=parseD(date);calY=d.getFullYear();calM=d.getMonth();
-  save();closeSheet();renderAll();toast(id?'行程已更新':`已建立，通知了 ${ppl.length} 條魚`);
+  save();closeSheet();renderAll();toast(id?'行程已更新':ppl.length?`已建立，通知了 ${ppl.length} 條魚`:'已加到你的個人行程');
 }
 function completeEvent(id){
   const e=D.events.find(x=>x.id===id);e.done=true;const newly=[];
   e.ppl.filter(p=>e.rsvp[p]!=='no').forEach(p=>{const f=fishById(p);if(!f)return;const was=canEvolve(f);f.meets++;if(e.date>f.last)f.last=e.date;if(!was&&canEvolve(f))newly.push(f.id)});
-  save();renderAll();toast('赴約完成，魚吃飽了');
+  save();renderAll();toast(isPersonal(e)?'完成了，辛苦了！':'赴約完成，魚吃飽了');
   if(newly.length)setTimeout(()=>promptEvolve(newly[0]),450);
 }
 
