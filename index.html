@@ -611,7 +611,7 @@ let R=load()||seedRoot();
 Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc='none';f.cloth='scarf'}if(!Array.isArray(f.ponds)||!f.ponds.length)f.ponds=[f.pond];f.pond=f.ponds[0]}));
 let D=R.cur?R.farms[R.cur.farm]:R.farms.demo;
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.10.1';
+const APP_VER='v1.10.2';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
@@ -1560,9 +1560,10 @@ function renderStats(){
   $('dexStats').innerHTML=`<div class="stat"><div class="k">最常約</div><div class="v">${most?`${esc(most.name)} · ${most.meets} 次`:'-'}</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div><div class="stat"><div class="k">本月已赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">下一個約</div><div class="v">${next?fmtDate(next.date):'-'}</div></div>`;
 }
 let pageIdx=0,bookPrev=null,flipping=false;
-const bookFish=()=>{const seen=new Set();return D.ponds.flatMap(p=>fishIn(p.id)).filter(f=>!seen.has(f.id)&&seen.add(f.id))};
-function pageHTML(f,i,n){const p=pondById(f.pond),s=satiety(f),P=f.profile;
-  return `<div class="pg-top"><span class="ribbons">${pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="ribbon" style="background:${q.color}">${esc(q.name)}</span>`).join('')}</span><span class="pgno">No.${String(i+1).padStart(3,'0')}</span></div>
+const bookFish=()=>D.ponds.flatMap(p=>fishIn(p.id));
+const bookPids=()=>D.ponds.flatMap(p=>fishIn(p.id).map(()=>p.id));
+function pageHTML(f,i,n,pid){const p=pondById(f.pond),s=satiety(f),P=f.profile;
+  return `<div class="pg-top"><span class="ribbons">${[...pondsOf(f)].sort((x,y)=>(y===pid)-(x===pid)).map(pondById).filter(Boolean).map(q=>`<span class="ribbon" style="background:${q.color}">${esc(q.name)}</span>`).join('')}</span><span class="pgno">No.${String(i+1).padStart(3,'0')}</span></div>
   <div class="pg-art"><canvas class="bookcv" aria-label="${esc(f.name)} 的樣子"></canvas>${has3D?`<div class="seg mini hero-seg" role="group" aria-label="預覽方式"><button data-dexmode="2d" aria-pressed="${dexMode==='2d'}">2D</button><button data-dexmode="3d" aria-pressed="${dexMode==='3d'}">3D</button></div>`:''}</div>
   <div class="pg-name"><h3>${esc(f.name)}</h3><span class="badge">${LEVELS[f.level]}</span>${canEvolve(f)?'<span class="badge">可進化</span>':''}</div>
   <div class="pg-meta">約過 ${f.meets} 次 · 上次見面 ${fmtDate(f.last)}（${daysSince(f)} 天前）</div>
@@ -1576,14 +1577,14 @@ function drawBookCanvas(cv,f,t){if(!cv||!f)return;if(use3DPreview()){if(bookPrev
   else drawFish(ctx,w/2,h/2+4,L,o,t,1)}
 function renderDex(){
   const list=bookFish(),n=list.length;
-  $('bookChaps').innerHTML=D.ponds.map(p=>{const first=list.findIndex(f=>pondsOf(f).includes(p.id));const cur=n&&pondsOf(list[pageIdx]).includes(p.id);return `<button class="chip" data-chap="${first}" aria-selected="${cur}" ${first<0?'disabled':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`}).join('');
+  $('bookChaps').innerHTML=D.ponds.map(p=>{const pids=bookPids(),first=pids.indexOf(p.id);const cur=n&&pids[pageIdx]===p.id;return `<button class="chip" data-chap="${first}" aria-selected="${cur}" ${first<0?'disabled':''}><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`}).join('');
   if(!n){$('page').innerHTML='<div class="empty" style="margin:40px 0">圖鑑還是空的。塘主可以在魚池的面板裡新增魚。</div>';$('pgNum').textContent='';$('pgPrev').disabled=$('pgNext').disabled=true;bookPrev=null;return}
   pageIdx=Math.max(0,Math.min(n-1,pageIdx));const f=list[pageIdx];
-  $('page').innerHTML=pageHTML(f,pageIdx,n);$('pgNum').textContent=`${pageIdx+1} / ${n}`;$('pgPrev').disabled=pageIdx===0;$('pgNext').disabled=pageIdx===n-1;
+  $('page').innerHTML=pageHTML(f,pageIdx,n,bookPids()[pageIdx]);$('pgNum').textContent=`${pageIdx+1} / ${n}`;$('pgPrev').disabled=pageIdx===0;$('pgNext').disabled=pageIdx===n-1;
   bookPrev={cv:$('page').querySelector('.bookcv'),id:f.id,yaw:-.5};attachSpin(bookPrev);drawBookCanvas(bookPrev.cv,f,0);
 }
 function pageSnapshot(el){const c=el.cloneNode(true);c.removeAttribute('id');const oc=el.querySelector('canvas'),cc=c.querySelector('canvas');if(oc&&cc){const bm=document.createElement('canvas');bm.width=oc.width;bm.height=oc.height;try{bm.getContext('2d').drawImage(oc,0,0)}catch(e){}c._bmp=bm;paintSnap(cc,bm)}c.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));c.querySelectorAll('.hero-seg').forEach(n=>n.remove());return c}
-function makeTpl(i){const list=bookFish(),tmp=document.createElement('article');tmp.className='page';tmp.style.cssText='position:absolute;left:0;top:0;width:100%;visibility:hidden';tmp.innerHTML=pageHTML(list[i],i,list.length);$('book').appendChild(tmp);drawBookCanvas(tmp.querySelector('canvas'),list[i],0);const snap=pageSnapshot(tmp);snap.dataset.h=tmp.offsetHeight;tmp.remove();return snap}
+function makeTpl(i){const list=bookFish(),tmp=document.createElement('article');tmp.className='page';tmp.style.cssText='position:absolute;left:0;top:0;width:100%;visibility:hidden';tmp.innerHTML=pageHTML(list[i],i,list.length,bookPids()[i]);$('book').appendChild(tmp);drawBookCanvas(tmp.querySelector('canvas'),list[i],0);const snap=pageSnapshot(tmp);snap.dataset.h=tmp.offsetHeight;tmp.remove();return snap}
 function buildCurl(tpl){const book=$('book'),W=book.clientWidth,H=Math.max(+tpl.dataset.h||0,$('page').offsetHeight),N=32,sw=W/N;
   const root=document.createElement('div');root.className='curl';root.style.height=H+'px';const strips=[];
   for(let i=0;i<N;i++){const st=document.createElement('div');st.className='strip';st.style.cssText=`left:${i*sw-.75}px;width:${sw+1.5}px;height:${H}px`;
