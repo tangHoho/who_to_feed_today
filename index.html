@@ -406,6 +406,7 @@ dl.prof dd{margin:0;word-break:break-word}
       <h2 class="sec">我的身分</h2>
       <div id="memberships"></div>
       <button class="link" id="resetDemo">重設示範資料</button>
+      <div class="ver" id="homeVer"></div>
     </section>
 
     <section id="view-pond" hidden>
@@ -1805,7 +1806,7 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
       :`<p>${esc(this.status())}</p>${this.state==='off'?'':`<button class="gbtn mt" id="cloudLogin">${GICON}用 Google 登入</button>`}`}<p class="tiny mt" style="color:var(--muted)">登入後，你的魚塘、魚池、行事曆和造型會存到雲端，換手機也看得到。</p></div>`)}
 };
 window.__cloud=Cloud;
-resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());
+$('homeVer').textContent='今天餵誰 '+APP_VER;resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());
 try{document.fonts&&document.fonts.ready.then(()=>{W3.fontTick=(W3.fontTick||0)+1;if(mode3d&&W3.ok)sync3D()})}catch(_){}
 requestAnimationFrame(loop);
 })();
