@@ -1,9 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 今天餵誰：每個人只能讀寫自己的存檔
+
+    // 每個人自己的存檔（身分、偏好、自己的魚塘）
     match /feedwho_users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // 共用魚塘：塘主建立，塘主和已加入的魚可以讀寫
+    match /feedwho_farms/{farm} {
+      function signedIn() { return request.auth != null; }
+      function isOwner() { return signedIn() && resource.data.owner == request.auth.uid; }
+      function isMember() { return signedIn() && exists(/databases/$(database)/documents/feedwho_farms/$(farm)/members/$(request.auth.uid)); }
+
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow read: if isOwner() || isMember();
+      allow update: if (isOwner() || isMember()) && request.resource.data.owner == resource.data.owner;
+      allow delete: if isOwner();
+
+      // 加入魚塘：要拿著有效的邀請碼才能把自己加進來
+      match /members/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid
+          || get(/databases/$(database)/documents/feedwho_farms/$(farm)).data.owner == request.auth.uid);
+        allow create, update: if signedIn() && request.auth.uid == uid
+          && get(/databases/$(database)/documents/feedwho_codes/$(request.resource.data.code)).data.farm == farm
+          && get(/databases/$(database)/documents/feedwho_codes/$(request.resource.data.code)).data.fish == request.resource.data.fish;
+        allow delete: if signedIn() && (request.auth.uid == uid
+          || get(/databases/$(database)/documents/feedwho_farms/$(farm)).data.owner == request.auth.uid);
+      }
+    }
+
+    // 邀請碼 → 哪個魚塘的哪條魚；登入的人可以用邀請碼查詢，只有塘主能建立或刪除
+    match /feedwho_codes/{code} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/feedwho_farms/$(request.resource.data.farm)).data.owner == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && get(/databases/$(database)/documents/feedwho_farms/$(resource.data.farm)).data.owner == request.auth.uid;
     }
   }
 }

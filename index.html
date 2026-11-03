@@ -616,14 +616,14 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.12.0';
+const APP_VER='v1.13.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
 function summary(root){try{const fs=Object.values(root.farms||{});return fs.map(f=>`${f.name}（${(f.ponds||[]).length} 池 ${(f.fish||[]).length} 魚 ${(f.events||[]).length} 行程）`).join('、')}catch(e){return''}}
 function backupLocal(reason,root){try{const data=JSON.stringify(root||R);const list=getBackups();if(list[0]&&list[0].data===data)return;list.unshift({at:Date.now(),reason,data,sum:summary(root||R)});while(list.length>10)list.pop();localStorage.setItem(BKEY,JSON.stringify(list))}catch(e){try{const list=getBackups();list.splice(5);localStorage.setItem(BKEY,JSON.stringify(list))}catch(_){}}}
 function autoDailyBackup(){const l=getBackups();const d=l.find(x=>x.reason==='每日自動備份');if(!d||new Date(d.at).toDateString()!==new Date().toDateString())backupLocal('每日自動備份')}
-function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud)window.__cloud.schedule()}
+function save(){const bd=bodyOf(R),changed=bd!==lastBody;if(changed){lastBody=bd;R.updatedAt=Date.now()}try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(changed&&window.__cloud){window.__cloud.schedule();if(typeof Shared!=='undefined')Shared.schedule()}}
 function findCode(code){code=code.trim().toUpperCase();for(const fid in R.farms){const f=R.farms[fid].fish.find(x=>x.code===code);if(f)return{farm:fid,fish:f}}return null}
 function makeCode(name){const base=(name.replace(/[^A-Za-z]/g,'').toUpperCase().slice(0,5))||'FISH';return base+'-'+Math.floor(1000+Math.random()*9000)}
 
@@ -1635,7 +1635,7 @@ const inviteUrl=code=>location.origin+location.pathname+'?code='+encodeURICompon
 function copyText(t,msg){const ok=()=>toast(msg),fb=()=>{try{const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();const r=document.execCommand('copy');ta.remove();r?ok():toast('無法自動複製，請長按邀請碼')}catch(e){toast('無法自動複製，請長按邀請碼')}};try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}}
 function joinFromUrl(){let code='';try{const u=new URL(location.href);code=u.searchParams.get('code')||'';if(code){u.searchParams.delete('code');history.replaceState(null,'',u.pathname+(u.search||'')+u.hash)}}catch(e){}
   if(!code)return;const hit=findCode(code);
-  if(!hit){showView('home');$('joinCode').value=code.toUpperCase();homeErr('這支手機找不到這組邀請碼。已幫你填好，確認後按「加入魚塘」；如果還是找不到，請塘主確認一下。');return}
+  if(!hit){showView('home');$('joinCode').value=code.toUpperCase();if(Cloud.state==='off'){homeErr('找不到這組邀請碼，請塘主確認一下。');return}Shared.pending=code.toUpperCase();homeErr('正在找塘主的魚塘…如果需要登入，請按 Google 登入，登入後會自動加入。');if(Cloud.state==='ready')Shared.join(code);return}
   let i=R.joined.findIndex(m=>m.farm===hit.farm&&m.viewer===hit.fish.id);if(i<0){R.joined.push({farm:hit.farm,viewer:hit.fish.id});i=R.joined.length-1}save();enterFarm(i);setTimeout(()=>toast(`歡迎 ${hit.fish.name} 游進來！`),2400)}
 function restoreRoot(str,reason){let root;try{root=JSON.parse(str)}catch(e){toast('備份檔壞掉了');return}if(!root||root.v!==2||!root.farms){toast('這不是今天餵誰的備份');return}
   backupLocal(reason);delete root.resetAt;root.updatedAt=Date.now()+1;if(Cloud.user)root.syncUid=Cloud.user.uid;try{localStorage.setItem(KEY,JSON.stringify(root))}catch(e){}
@@ -1649,8 +1649,8 @@ function openBackup(){const list=getBackups(),fmt=t=>new Date(t).toLocaleString(
 function homeErr(t){$('homeErr').textContent=t;$('homeErr').hidden=false}
 function createFarm(){const name=$('newFarm').value.trim()||'我的新魚塘';const id='f'+Date.now();
   R.farms[id]={id,name,owner:'我',viewer:'admin',ponds:[{id:'p1',name:'第一個魚池',color:POND_COLORS[0]}],fish:[],events:[],notes:{},boards:{p1:[]},notifs:{},feedLog:{},feedBonus:{}};
-  R.joined.unshift({farm:id,viewer:'admin'});save();enterFarm(0);setTimeout(()=>toast('魚塘開好了，去圖鑑新增魚池和魚'),2300)}
-function joinFarm(){const hit=findCode($('joinCode').value||'');if(!hit){homeErr('找不到這個邀請碼，請跟塘主確認一下。');return}
+  R.joined.unshift({farm:id,viewer:'admin'});save();enterFarm(0);setTimeout(()=>Shared.start(),300);setTimeout(()=>toast('魚塘開好了，去圖鑑新增魚池和魚'),2300)}
+function joinFarm(){const raw=$('joinCode').value||'';const hit=findCode(raw);if(!hit){if(Cloud.state==='off'){homeErr('找不到這個邀請碼，請跟塘主確認一下。');return}Shared.join(raw);return}
   let i=R.joined.findIndex(m=>m.farm===hit.farm&&m.viewer===hit.fish.id);
   if(i<0){R.joined.push({farm:hit.farm,viewer:hit.fish.id});i=R.joined.length-1}
   $('joinCode').value='';save();enterFarm(i)}
@@ -1944,7 +1944,7 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
     try{const base='https://www.gstatic.com/firebasejs/10.12.2/';for(const f of['firebase-app-compat.js','firebase-auth-compat.js','firebase-firestore-compat.js'])await loadScript(base+f);
       firebase.initializeApp(C);this.auth=firebase.auth();this.db=firebase.firestore();
       this.auth.getRedirectResult().catch(e=>this.authError(e));
-      this.auth.onAuthStateChanged(u=>{this.user=u;this.state='ready';this.render();if(u)this.pull()})
+      this.auth.onAuthStateChanged(u=>{this.user=u;this.state='ready';this.render();if(u)this.pull();else if(Shared.pending)homeErr('要先用 Google 登入，才能加入塘主的魚塘。按上方「登入」，登入後會自動加入。')})
     }catch(e){this.state='unavailable';this.render()}},
   ref(){return this.db.collection('feedwho_users').doc(this.user.uid)},
   label(){if(this.state==='off')return '尚未設定';if(this.state!=='ready')return '連線中…';return this.user?(this.user.displayName||this.user.email||'已登入'):'未登入'},
@@ -1955,11 +1955,11 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
         const score=x=>{try{return Object.values(x.farms||{}).reduce((a,f)=>a+(f.ponds||[]).length+(f.fish||[]).length*2+(f.events||[]).length*2,0)}catch(e){return 0}};
         if(!takeRemote&&score(remote)>score(R)&&bodyOf(remote)!==bodyOf(R)&&confirm(`雲端存檔的資料比這支手機多：\n雲端：${summary(remote)}\n這支手機：${summary(R)||'（空）'}\n\n按「確定」改用雲端存檔（手機目前的資料會先自動備份）\n按「取消」用手機的資料覆蓋雲端`))takeRemote=true;
         if(takeRemote&&remote.resetAt&&(remote.resetAt>(R.resetAt||0))&&bodyOf(remote)!==bodyOf(R)&&!confirm('雲端的存檔是剛被「清除全部資料」的版本。\n\n按「確定」用雲端的空資料（這台手機的資料會先自動備份）\n按「取消」保留這台手機的資料並上傳到雲端'))takeRemote=false;
-        if(takeRemote){backupLocal('載入雲端前自動備份');remote.syncUid=uid;localStorage.setItem(KEY,JSON.stringify(remote));toast('已載入雲端存檔');setTimeout(()=>location.reload(),600);return}}
-      await this.push();if(manual)toast('已同步')}catch(e){this.syncError(e)}},
+        if(takeRemote){backupLocal('載入雲端前自動備份');Object.keys(remote.farms||{}).forEach(id=>{const f=remote.farms[id];if(f&&f._stub){if(R.farms[id]&&!R.farms[id]._stub)remote.farms[id]=R.farms[id];else remote.farms[id]=Object.assign(blankFarm(),{id,name:f.name,_shared:true,_owner:f._owner})}});remote.syncUid=uid;localStorage.setItem(KEY,JSON.stringify(remote));toast('已載入雲端存檔');setTimeout(()=>location.reload(),600);return}}
+      await this.push();if(manual)toast('已同步');Shared.start()}catch(e){this.syncError(e);Shared.start()}},
   async push(){if(!this.user)return;clearTimeout(this.timer);this.timer=null;this.busy=true;
     try{R.syncUid=this.user.uid;try{localStorage.setItem(KEY,JSON.stringify(R))}catch(_){}
-      const cur=JSON.stringify(R),pay={save:cur,updatedAt:R.updatedAt||Date.now(),name:this.user.displayName||'',email:this.user.email||'',ver:APP_VER};
+      const stub=JSON.parse(JSON.stringify(R));Object.values(stub.farms||{}).forEach(f=>{if(f._shared){Object.keys(f).forEach(k=>{if(!['id','name','_shared','_owner'].includes(k))delete f[k]});f._stub=true}});const cur=JSON.stringify(stub),pay={save:cur,updatedAt:R.updatedAt||Date.now(),name:this.user.displayName||'',email:this.user.email||'',ver:APP_VER};
       if(this.lastSaved&&this.lastSaved!==cur){if(this.dailyDate!==TODAY){pay.daily=this.lastSaved;pay.dailyAt=Date.now();pay.dailyDate=TODAY;this.dailyDate=TODAY;this.backups=Object.assign(this.backups||{},{daily:pay.daily,dailyAt:pay.dailyAt})}if(R.resetAt&&!(JSON.parse(this.lastSaved).resetAt>=R.resetAt)){pay.beforeReset=this.lastSaved;pay.beforeResetAt=Date.now();this.backups=Object.assign(this.backups||{},{beforeReset:pay.beforeReset,beforeResetAt:pay.beforeResetAt})}}
       await this.ref().set(pay,{merge:true});this.lastSaved=cur;
       this.busy=false;this.last=Date.now();this.err='';this.render()}catch(e){this.syncError(e)}},
@@ -1982,6 +1982,72 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
       :`<p>${esc(this.status())}</p>${this.state==='off'?'':`<button class="gbtn mt" id="cloudLogin">${GICON}用 Google 登入</button>`}`}<p class="tiny mt" style="color:var(--muted)">登入後，你的魚塘、魚池、行事曆和造型會存到雲端，換手機也看得到。</p></div>`)}
 };
 window.__cloud=Cloud;
+/* ---------- 共用魚塘：塘主把魚塘放到雲端，魚用邀請碼加入 ---------- */
+const JS=x=>JSON.stringify(x);
+function merge3(b,l,r){
+  if(JS(l)===JS(b))return r;if(JS(r)===JS(b))return l;if(JS(l)===JS(r))return l;
+  if(Array.isArray(l)&&Array.isArray(r)){const key=o=>o&&typeof o==='object'?(o.id!=null?'i'+o.id:(o.at?'m'+(o.by||'')+o.at:null)):null;
+    if(l.every(key)&&r.every(key)){const bm=new Map((Array.isArray(b)?b:[]).filter(key).map(o=>[key(o),o])),lm=new Map(l.map(o=>[key(o),o])),rm=new Map(r.map(o=>[key(o),o])),out=[],seen=new Set();
+      const add=k=>{if(seen.has(k))return;seen.add(k);const bo=bm.get(k),lo=lm.get(k),ro=rm.get(k);
+        if(lo&&ro)out.push(merge3(bo,lo,ro));else if(lo){if(!bo||JS(bo)!==JS(lo))out.push(lo)}else if(ro){if(!bo||JS(bo)!==JS(ro))out.push(ro)}};
+      l.forEach(o=>add(key(o)));r.forEach(o=>add(key(o)));return out}
+    return l}
+  if(l&&r&&typeof l==='object'&&typeof r==='object'){const bb=b&&typeof b==='object'?b:{},o={};
+    new Set([...Object.keys(l),...Object.keys(r)]).forEach(k=>{
+      if(!(k in l)){if(k in bb&&JS(bb[k])===JS(r[k]))return;o[k]=r[k];return}
+      if(!(k in r)){if(k in bb&&JS(bb[k])===JS(l[k]))return;o[k]=l[k];return}
+      o[k]=merge3(bb[k],l[k],r[k])});return o}
+  return l}
+const farmData=f=>{const c=JSON.parse(JSON.stringify(f));delete c.viewer;delete c._shared;delete c._owner;return c};
+const Shared={base:{},subs:{},timer:null,started:false,pending:'',
+  loadBase(){try{this.base=JSON.parse(localStorage.getItem('feedwho-shared-base'))||{}}catch(e){this.base={}}},
+  saveBase(){try{localStorage.setItem('feedwho-shared-base',JSON.stringify(this.base))}catch(e){}},
+  ok(){return Cloud.state==='ready'&&Cloud.user&&Cloud.db},
+  fref(id){return Cloud.db.collection('feedwho_farms').doc(id)},
+  cref(code){return Cloud.db.collection('feedwho_codes').doc(code)},
+  uniqueId(){return 'f'+Cloud.user.uid.slice(0,8).toLowerCase()+Date.now().toString(36)},
+  renameFarm(oldId,newId){const f=R.farms[oldId];if(!f)return;f.id=newId;R.farms[newId]=f;delete R.farms[oldId];R.joined.forEach(m=>{if(m.farm===oldId)m.farm=newId});if(R.cur&&R.cur.farm===oldId)R.cur.farm=newId},
+  async start(){if(!this.ok())return;this.loadBase();this.started=true;const uid=Cloud.user.uid;
+    for(const m of R.joined.filter(m=>m.viewer==='admin')){let f=R.farms[m.farm];if(!f)continue;
+      if(f._owner&&f._owner!==uid)continue;
+      if(!f._shared){if(!/^f[a-z0-9]{8}[a-z0-9]+$/.test(f.id)){const nid=this.uniqueId();this.renameFarm(f.id,nid);f=R.farms[nid]}
+        try{await this.fref(f.id).set({owner:uid,name:f.name,data:JS(farmData(f)),updatedAt:Date.now()});f._shared=true;f._owner=uid;this.base[f.id]=farmData(f);this.saveBase();await this.syncCodes(f,[]);save()}catch(e){Cloud.syncError(e);continue}}}
+    R.joined.forEach(m=>{const f=R.farms[m.farm];if(f&&f._shared)this.listen(f.id)});
+    if(this.pending){const c=this.pending;this.pending='';this.join(c)}},
+  listen(id){if(this.subs[id])return;this.subs[id]=this.fref(id).onSnapshot(s=>{if(!s.exists)return;let rd;try{rd=JSON.parse(s.data().data)}catch(e){return}this.applyRemote(id,rd)},e=>console.warn('[Shared]',id,e.code))},
+  applyRemote(id,rd){const lf=R.farms[id];if(!lf){R.farms[id]=Object.assign(JSON.parse(JS(rd)),{_shared:true});this.base[id]=farmData(rd);this.saveBase();return}
+    const local=farmData(lf),base=this.base[id]||rd,merged=merge3(base,local,rd);
+    this.base[id]=rd;this.saveBase();
+    if(JS(merged)===JS(local))return;
+    const keep={viewer:lf.viewer,_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(merged)),keep);
+    try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}
+    if(JS(merged)!==JS(rd))this.schedule();
+    if(D===lf){try{renderAll()}catch(e){}}},
+  schedule(){if(!this.ok()||!this.started)return;clearTimeout(this.timer);this.timer=setTimeout(()=>this.pushAll(),1500)},
+  dbg(){return {started:this.started,ok:this.ok(),base:Object.keys(this.base),timer:!!this.timer}},
+  async pushAll(){for(const m of R.joined){const f=R.farms[m.farm];if(f&&f._shared)await this.push(f.id)}},
+  async push(id){const lf=R.farms[id];if(!lf||!this.ok())return;const local=farmData(lf),base=this.base[id];if(base&&JS(base)===JS(local))return;
+    try{let out;await Cloud.db.runTransaction(async tx=>{const s=await tx.get(this.fref(id));const rd=s.exists?JSON.parse(s.data().data):base||local;out=merge3(base||rd,local,rd);tx.update(this.fref(id),{data:JS(out),name:out.name||'',updatedAt:Date.now()})});
+      const prevCodes=(base&&base.fish||[]).map(f=>f.code);this.base[id]=JSON.parse(JS(out));this.saveBase();
+      if(JS(out)!==JS(local)){const keep={viewer:lf.viewer,_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(out)),keep);if(D===lf)renderAll()}
+      if(lf._owner===Cloud.user.uid)await this.syncCodes(lf,prevCodes)}catch(e){Cloud.syncError(e)}},
+  async syncCodes(f,prevCodes){const now=f.fish.map(x=>x.code);let changed=false;
+    for(const fish of f.fish){if(prevCodes.includes(fish.code))continue;
+      for(let tries=0;tries<3;tries++){try{await this.cref(fish.code).set({farm:f.id,fish:fish.id});break}catch(e){if(e.code==='permission-denied'){fish.code=makeCode(fish.name);changed=true}else{console.warn(e);break}}}}
+    for(const c of prevCodes)if(!now.includes(c)){try{await this.cref(c).delete()}catch(e){}}
+    if(changed){save()}},
+  async join(raw){const code=raw.trim().toUpperCase();if(!code)return;
+    if(Cloud.state!=='ready'){homeErr('雲端連線中，稍等幾秒再按一次「加入魚塘」。');this.pending=code;return}
+    if(!Cloud.user){this.pending=code;showView('home');$('joinCode').value=code;homeErr('要先用 Google 登入，才能加入塘主的魚塘。登入後會自動加入。');Cloud.google();return}
+    try{toast('找魚塘中…');const cs=await this.cref(code).get();if(!cs.exists){homeErr('找不到這個邀請碼，請跟塘主確認一下。');return}
+      const {farm,fish}=cs.data();await this.fref(farm).collection('members').doc(Cloud.user.uid).set({fish,code,at:Date.now(),name:Cloud.user.displayName||''});
+      const fs=await this.fref(farm).get();if(!fs.exists){homeErr('這個魚塘已經不存在了。');return}
+      const rd=JSON.parse(fs.data().data);backupLocal('加入魚塘前自動備份');R.farms[farm]=Object.assign(JSON.parse(JS(rd)),{_shared:true,_owner:fs.data().owner});this.base[farm]=farmData(rd);this.saveBase();
+      let i=R.joined.findIndex(m=>m.farm===farm&&m.viewer===fish);if(i<0){R.joined.push({farm,viewer:fish});i=R.joined.length-1}
+      $('joinCode').value='';$('homeErr').hidden=true;save();this.listen(farm);enterFarm(i);const fo=rd.fish.find(x=>x.id===fish);setTimeout(()=>toast(`歡迎 ${fo?fo.name:''} 游進來！`),2400)}
+    catch(e){if(e.code==='permission-denied')homeErr('加入失敗：邀請碼不對，或塘主的雲端規則還沒更新。');else homeErr('加入失敗：'+(e.code||e.message))}}
+};
+
 $('homeVer').textContent='今天餵誰 '+APP_VER;resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();autoDailyBackup();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());joinFromUrl();
 try{document.fonts&&document.fonts.ready.then(()=>{W3.fontTick=(W3.fontTick||0)+1;if(mode3d&&W3.ok)sync3D()})}catch(_){}
 requestAnimationFrame(loop);
