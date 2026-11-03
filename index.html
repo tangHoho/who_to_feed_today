@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.17.0';
+const APP_VER='v1.18.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1692,6 +1692,7 @@ function openMenu(){const list=D.notifs[D.viewer]||[],un=list.filter(x=>!x.read)
     <div class="mitem static"><span>今日撒餌</span><span class="mmuted">${feedText()}</span></div>
     <button class="mitem" id="menuCalStyle"><span>行事曆樣式</span><span class="mmuted">${{full:'滿版',lines:'格線',card:'卡片'}[R.calLay||'full']} · ${{pill:'色條',fish:'小魚',fill:'塗色',dot:'點點'}[R.calMark||'pill']}</span></button>
     <div class="mitem static"><span>背景音樂</span><div class="seg mini" role="group" aria-label="背景音樂">${[['happy','輕快'],['calm','溫柔'],['off','關']].map(([k,n])=>`<button data-bgmstyle="${k}" aria-pressed="${(R.bgm===false?'off':(R.bgmStyle||'happy'))===k}">${n}</button>`).join('')}</div></div>
+    <button class="mitem" id="ambToggle" aria-pressed="${R.amb!==false}"><span>環境音（魚池）</span><span class="mmuted">${R.amb!==false?'開':'關'}</span></button>
     <button class="mitem" id="sfxToggle" aria-pressed="${R.sfx!==false}"><span>音效</span><span class="mmuted">${R.sfx!==false?'開':'關'}</span></button>
     <button class="mitem" id="menuEnv"><span>天氣與時間</span><span class="mmuted">${$('envText').textContent}</span></button>
     <div class="mitem static"><span>2D 風格</span><div class="seg mini" role="group" aria-label="2D 風格">${[['classic','經典'],['sticker','貼紙'],['tank','水族箱']].map(([k,n])=>`<button data-style2d="${k}" aria-pressed="${(R.style2d||'classic')===k}">${n}</button>`).join('')}</div></div>
@@ -1936,6 +1937,7 @@ document.addEventListener('click',ev=>{
   if(d.evolve){promptEvolve(d.evolve);return}
   if(d.bgmstyle){const k=d.bgmstyle;document.querySelectorAll('[data-bgmstyle]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.bgmstyle===k));if(k==='off'){R.bgm=false;BGM.stop()}else{const changed=(R.bgmStyle||'happy')!==k;R.bgm=true;R.bgmStyle=k;if(changed&&BGM.playing){BGM.stop();setTimeout(()=>{BGM.wasOn=true;BGM.start()},450)}else{BGM.wasOn=true;BGM.start()}}save();return}
   if(b.id==='bgmToggle'){R.bgm=R.bgm===false;save();b.setAttribute('aria-pressed',R.bgm!==false);b.querySelector('.mmuted').textContent=R.bgm!==false?'開':'關';if(R.bgm!==false){BGM.wasOn=true;BGM.start()}else BGM.stop();return}
+  if(b.id==='ambToggle'){R.amb=R.amb===false;save();b.setAttribute('aria-pressed',R.amb!==false);b.querySelector('.mmuted').textContent=R.amb!==false?'開':'關';if(R.amb===false)AMB.stop();return}
   if(b.id==='sfxToggle'){R.sfx=R.sfx===false;save();b.setAttribute('aria-pressed',R.sfx!==false);b.querySelector('.mmuted').textContent=R.sfx!==false?'開':'關';if(R.sfx!==false)SFX.play('ok');return}
   if(d.evoyes){SFX.play('evolve');const f=fishById(d.evoyes);f.level++;save();closeSheet();renderAll();toast(`${f.name} 長成「${LEVELS[f.level]}」了`);setTimeout(()=>openFish(f.id),300);return}
   if('cfadd' in d){const L=$('cfList');if(!L)return;const k=d.cfadd;if(L.children.length>=12){toast('最多 12 個自訂欄位');return}
@@ -2031,6 +2033,49 @@ const BGM={on(){return R.bgm!==false},playing:false,timer:null,next:0,step:0,bar
       this.next+=eighth;this.step++}}};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)BGM.stop();else if(BGM.on()&&BGM.wasOn)BGM.start()});
 ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(BGM.on()&&!BGM.playing){BGM.wasOn=true;BGM.start()}},{passive:true}));
+
+/* ---------- 環境音：水聲、風吹樹葉、鳥叫、蟲鳴、氣泡、雨聲（只在魚池畫面） ---------- */
+const AMB={on(){return R.amb!==false},running:false,out:null,beds:{},timers:[],
+  noiseBuf(kind){const a=SFX.ctx,n=a.sampleRate*4,b=a.createBuffer(1,n,a.sampleRate),c=b.getChannelData(0);let l=0,b0=0,b1=0,b2=0;
+    for(let i=0;i<n;i++){const w=Math.random()*2-1;if(kind==='brown'){l=(l+.02*w)/1.02;c[i]=l*3.2}else if(kind==='pink'){b0=.997*b0+w*.029;b1=.985*b1+w*.032;b2=.95*b2+w*.048;c[i]=(b0+b1+b2+w*.02)*.9}else c[i]=w}return b},
+  bed(name,kind,ftype,freq,q,vol,lfoRate,lfoDepth){const a=SFX.ctx,src=a.createBufferSource();src.buffer=this.bufs[kind];src.loop=true;const f=a.createBiquadFilter();f.type=ftype;f.frequency.value=freq;f.Q.value=q;
+    const g=a.createGain();g.gain.value=0;src.connect(f).connect(g).connect(this.out);src.start();
+    let lfo=null;if(lfoRate){lfo=a.createOscillator();const lg=a.createGain();lfo.frequency.value=lfoRate;lg.gain.value=lfoDepth;lfo.connect(lg).connect(g.gain);lfo.start()}
+    this.beds[name]={src,g,lfo,vol}},
+  setBed(name,v){const b=this.beds[name];if(b)b.g.gain.setTargetAtTime(v,SFX.ctx.currentTime,.8)},
+  start(){if(this.running||!this.on())return;const a=SFX.ac();if(!a)return;this.running=true;
+    if(!this.out){this.out=a.createGain();this.out.gain.value=0;this.out.connect(a.destination);this.bufs={brown:this.noiseBuf('brown'),pink:this.noiseBuf('pink'),white:this.noiseBuf('white')};
+      this.bed('water','brown','lowpass',520,.6,.32,.12,.08);
+      this.bed('leaves','pink','bandpass',1800,.8,.05,.07,.035);
+      this.bed('rain','white','highpass',2500,.5,.0,0,0);
+      this.bed('rainLow','pink','lowpass',900,.5,.0,0,0)}
+    this.out.gain.setTargetAtTime(.9*(R.ambVol??.7),a.currentTime,1);this.update();this.loop()},
+  stop(){if(!this.running)return;this.running=false;this.timers.forEach(clearTimeout);this.timers=[];if(this.out)this.out.gain.setTargetAtTime(0,SFX.ctx.currentTime,.5)},
+  env(){try{return envNow()}catch(e){return {phase:'day',wx:'clear',night:false}}},
+  update(){if(!this.running)return;const E=this.env(),wet=E.wx==='rain'||E.wx==='thunder';
+    this.setBed('water',wet?.22:.32);this.setBed('leaves',E.wx==='fog'?.02:(wet?.08:.05));this.setBed('rain',wet?(E.wx==='thunder'?.09:.06):0);this.setBed('rainLow',wet?.18:0)},
+  later(fn,ms){const t=setTimeout(()=>{this.timers=this.timers.filter(x=>x!==t);if(this.running)fn()},ms);this.timers.push(t)},
+  loop(){const E=this.env(),night=E.phase==='night'||E.phase==='dusk',wet=E.wx==='rain'||E.wx==='thunder'||E.wx==='snow';
+    this.update();
+    if(!wet&&!night&&Math.random()<.7)this.bird();
+    if(night&&!wet)this.crickets();
+    if(Math.random()<.45)this.bubbles();
+    if(Math.random()<.12)this.splash();
+    if(E.wx==='thunder'&&Math.random()<.12)this.thunder();
+    this.later(()=>this.loop(),1800+Math.random()*3200)},
+  blip(f0,f1,d,t,v,type='sine'){const a=SFX.ctx,o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+Math.min(.015,d/3));g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(this.out);o.start(t);o.stop(t+d+.03)},
+  bird(){const a=SFX.ctx,t=a.currentTime+.05,kind=Math.floor(Math.random()*3),base=2600+Math.random()*1600,v=.035+Math.random()*.03;
+    if(kind===0)for(let i=0;i<2+Math.floor(Math.random()*3);i++)this.blip(base,base*1.35,.07,t+i*.11,v);
+    else if(kind===1){this.blip(base*1.2,base*.8,.18,t,v);this.blip(base*.9,base*1.3,.12,t+.22,v*.8)}
+    else for(let i=0;i<6;i++)this.blip(base+(i%2)*500,base+(i%2)*500+200,.04,t+i*.055,v*.8)},
+  crickets(){const a=SFX.ctx,t=a.currentTime+.05,f=4300+Math.random()*500;for(let r=0;r<2+Math.floor(Math.random()*3);r++)for(let i=0;i<4;i++)this.blip(f,f,.022,t+r*.42+i*.035,.012,'triangle')},
+  bubbles(){const a=SFX.ctx,t=a.currentTime+.05;for(let i=0;i<1+Math.floor(Math.random()*4);i++){const f=500+Math.random()*500;this.blip(f,f*2.2,.06,t+i*(.08+Math.random()*.1),.045)}},
+  splash(){const a=SFX.ctx,t=a.currentTime+.05,src=a.createBufferSource();src.buffer=this.bufs.white;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(1600,t);f.frequency.exponentialRampToValueAtTime(500,t+.35);f.Q.value=.9;
+    const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.09,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.4);src.connect(f).connect(g).connect(this.out);src.start(t,Math.random()*3);src.stop(t+.45);this.blip(380,180,.2,t,.05)},
+  thunder(){const a=SFX.ctx,t=a.currentTime+.3+Math.random(),src=a.createBufferSource();src.buffer=this.bufs.brown;const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=160;
+    const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5,t+.15);g.gain.exponentialRampToValueAtTime(.0001,t+3.2);src.connect(f).connect(g).connect(this.out);src.start(t,Math.random());src.stop(t+3.3)}};
+setInterval(()=>{const want=AMB.on()&&view==='pond'&&!document.hidden&&SFX.ctx&&SFX.ctx.state==='running';if(want&&!AMB.running)AMB.start();else if(!want&&AMB.running)AMB.stop();else if(AMB.running)AMB.update()},1000);
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(AMB.on())SFX.ac()},{passive:true}));
 const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:0,err:'',
   async init(){const C=window.FIREBASE_CONFIG||{};if(!C.apiKey){this.state='off';this.render();return}
     this.state='loading';this.render();
