@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.13.6';
+const APP_VER='v1.13.7';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1636,9 +1636,10 @@ function animCurl(cv,to,dur,done){const from=cv.p,t0=performance.now();cv.drag=f
 let curl=null;
 function paintSnap(cv,bm){if(!cv||!bm)return;cv.width=bm.width;cv.height=bm.height;cv.getContext('2d').drawImage(bm,0,0)}
 function startFlip(ni){const list=bookFish();if(curl||flipping||ni<0||ni>=list.length||ni===pageIdx)return null;
-  if(ni>pageIdx){const tpl=pageSnapshot($('page'));tpl.dataset.h=$('page').offsetHeight;const cv=buildCurl(tpl);cv.dir=1;cv.from=pageIdx;pageIdx=ni;renderDex();setCurl(cv,0);return cv}
-  const cv=buildCurl(makeTpl(ni));cv.dir=-1;cv.to=ni;setCurl(cv,1);return cv}
-function endFlip(cv,commit){flipping=true;const fin=()=>{removeCurl(cv);curl=null;flipping=false};
+  if(ni>pageIdx){const tpl=pageSnapshot($('page'));tpl.dataset.h=$('page').offsetHeight;const cv=buildCurl(tpl);cv.dir=1;cv.from=pageIdx;pageIdx=ni;setCurl(cv,0);revealCurl(cv,()=>{if(pageIdx===ni)renderDex()});return cv}
+  const cv=buildCurl(makeTpl(ni));cv.dir=-1;cv.to=ni;setCurl(cv,1);revealCurl(cv);return cv}
+function revealCurl(cv,after){cv.root.style.visibility='hidden';cv.cast.style.visibility='hidden';requestAnimationFrame(()=>requestAnimationFrame(()=>{cv.root.style.visibility='';cv.cast.style.visibility='';if(after)requestAnimationFrame(after)}))}
+function endFlip(cv,commit){flipping=true;const fin=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{removeCurl(cv);curl=null;flipping=false}));
   if(cv.dir>0){if(commit)animCurl(cv,1,180+500*(1-cv.p),fin);else animCurl(cv,0,320,()=>{pageIdx=cv.from;renderDex();fin()})}
   else{if(commit)animCurl(cv,0,180+500*cv.p,()=>{pageIdx=cv.to;renderDex();fin()});else animCurl(cv,1,320,fin)}}
 function flipTo(ni){const list=bookFish();if(ni<0||ni>=list.length||ni===pageIdx)return;if(reduced){pageIdx=ni;renderDex();return}const cv=startFlip(ni);if(!cv)return;curl=cv;endFlip(cv,true)}
