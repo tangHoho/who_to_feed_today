@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>今天餵誰</title>
 <meta name="description" content="今天餵誰：把朋友當成魚養在魚塘裡的約會行事曆小遊戲">
 <meta name="theme-color" content="#2D8796">
@@ -114,7 +114,9 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 
 .pond-wrap{position:relative;margin-top:10px;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px -18px rgba(10,40,48,.6)}
 #pond{display:block;width:100%;height:330px;touch-action:manipulation;cursor:pointer}
-html{-webkit-tap-highlight-color:transparent}
+html{-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body,button,a,label,input,select,textarea{touch-action:manipulation}
+input,select,textarea{font-size:16px!important}
 *{-webkit-tap-highlight-color:transparent}
 #pond,#pond3d,#pond3d canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;outline:none}
 #pond3d{position:relative;width:100%;height:400px;touch-action:none;cursor:grab}
@@ -616,7 +618,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.13.0';
+const APP_VER='v1.13.1';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -2048,7 +2050,9 @@ const Shared={base:{},subs:{},timer:null,started:false,pending:'',
     catch(e){if(e.code==='permission-denied')homeErr('加入失敗：邀請碼不對，或塘主的雲端規則還沒更新。');else homeErr('加入失敗：'+(e.code||e.message))}}
 };
 
-$('homeVer').textContent='今天餵誰 '+APP_VER;resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();autoDailyBackup();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());joinFromUrl();
+$('homeVer').textContent='今天餵誰 '+APP_VER;resetPond();renderAll();showView(view);applyMode();renderEnvPill();fetchEnv();document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
+  document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1&&!e.target.closest('#pond3d'))e.preventDefault()},{passive:false});
+  autoDailyBackup();Cloud.init();window.addEventListener('pagehide',()=>Cloud.flush());joinFromUrl();
 try{document.fonts&&document.fonts.ready.then(()=>{W3.fontTick=(W3.fontTick||0)+1;if(mode3d&&W3.ok)sync3D()})}catch(_){}
 requestAnimationFrame(loop);
 })();
