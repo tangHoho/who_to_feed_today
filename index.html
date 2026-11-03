@@ -173,7 +173,7 @@ input,select,textarea{font-size:16px!important}
 .av-opt{height:44px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font-size:22px;display:grid;place-items:center;cursor:pointer;overflow:hidden;padding:0}
 .av-opt[aria-pressed="true"]{border-color:var(--koi);box-shadow:0 0 0 2px color-mix(in srgb,var(--koi) 30%,transparent)}
 .av-opt img{width:100%;height:100%;object-fit:cover}
-.adm-name{font-family:var(--display);font-size:22px;font-weight:700}.adm-sub{font-size:13px;color:var(--muted)}
+.adm-name{font-family:var(--display);font-size:22px;font-weight:700;display:flex;align-items:center;gap:6px}.adm-pen{border:0;background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}.adm-sub{font-size:13px;color:var(--muted)}
 .lb{display:flex;flex-direction:column;gap:6px}
 .lb-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px 10px;color:var(--ink)}
 .lb-rank{width:26px;text-align:center;font-size:20px;flex:none}.lb-n{font-family:var(--display);font-size:15px;color:var(--muted)}
@@ -626,7 +626,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.6';
+const APP_VER='v1.20.7';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1576,8 +1576,8 @@ function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
   const medal=i=>['🥇','🥈','🥉'][i]||`<span class="lb-n">${i+1}</span>`;
   const lb=rank.length?rank.map((f,i)=>`<button class="lb-row" data-fish="${f.id}"><span class="lb-rank">${medal(i)}</span><canvas class="lb-fish" data-lbfish="${f.id}" aria-hidden="true"></canvas><span class="lb-main"><span class="lb-name">${esc(f.name)}<span class="lb-ponds">${pondsOf(f).map(pondById).filter(Boolean).map(q=>`<span class="dot" style="background:${q.color}"></span>`).join('')}</span></span><span class="lb-bar"><i style="width:${f.meets/mx*100}%;background:${pondById(f.pond)?.color||'var(--koi)'}"></i></span></span><span class="lb-cnt"><b>${f.meets}</b> 次</span></button>`).join(''):'<div class="empty">還沒有魚，先去新增幾條吧</div>';
   const prof=edit?`<div class="field"><span>頭像</span><div class="av-pick">${AV_PRESETS.map(e=>`<button type="button" class="av-opt" data-adminav="${e}" aria-pressed="${(P.avatar||'👑')===e}">${e}</button>`).join('')}<label class="av-opt av-up" aria-pressed="${/^data:/.test(P.avatar||'')}">${/^data:/.test(P.avatar||'')?`<img src="${P.avatar}" alt="">`:'📷'}<input type="file" id="avFile" accept="image/*" hidden></label></div><p class="tiny" style="color:var(--muted)">可以選一個圖示，或點相機上傳自己的照片（會自動裁成正方形）</p></div><div class="field"><span>魚塘名稱</span><input type="text" id="aFarm" maxlength="20" value="${esc(D.name)}"></div><div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
-    :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>自我介紹</dt><dd>${esc(P.intro)||'（還沒寫）'}</dd>${cfRows(P)}</dl>${own?`<button class="btn ghost small mt" data-editadmin>編輯塘主資料</button>`:''}`;
-  openSheet(`${head('塘主資料')}<div class="adm-hero">${adminAvHTML()}<div><div class="adm-name">${esc(adminName())}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
+    :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>自我介紹</dt><dd>${esc(P.intro)||'（還沒寫）'}</dd>${cfRows(P)}</dl>`;
+  openSheet(`${head('塘主資料')}<div class="adm-hero">${adminAvHTML()}<div><div class="adm-name">${esc(adminName())}${own&&!edit?`<button class="adm-pen" data-editadmin aria-label="編輯塘主資料" title="編輯塘主資料"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16z"/><path d="M14.3 6.9l2.8 2.8"/></svg></button>`:''}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
     <h2 class="sec">關於塘主</h2>${prof}
     <h2 class="sec">約相關紀錄</h2><div class="stats"><div class="stat"><div class="k">累計赴約</div><div class="v">${done.length} 場</div></div><div class="stat"><div class="k">本月赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">即將到來</div><div class="v">${up} 個約</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div></div>
     <h2 class="sec">約最多的魚</h2><div class="lb">${lb}</div>`);
