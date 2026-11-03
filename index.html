@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.3';
+const APP_VER='v1.20.4';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -2211,7 +2211,7 @@ const Shared={base:{},subs:{},timer:null,started:false,pending:'',
     R.joined.forEach(m=>{const f=R.farms[m.farm];if(f&&f._shared)this.listen(f.id)});
     if(this.pending){const c=this.pending;this.pending='';this.join(c)}},
   listen(id){if(this.subs[id])return;this.subs[id]=this.fref(id).onSnapshot(s=>{if(!s.exists)return;let rd;try{rd=JSON.parse(s.data().data)}catch(e){return}this.applyRemote(id,rd)},e=>console.warn('[Shared]',id,e.code))},
-  applyRemote(id,rd){const lf=R.farms[id];if(lf&&lf._stub){const keep={viewer:lf.viewer||'admin',_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(rd)),keep);this.base[id]=farmData(rd);this.saveBase();try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(D===lf){try{renderAll()}catch(e){}}return}
+  applyRemote(id,rd){const lf=R.farms[id];const emp=f=>!((f.ponds||[]).length||(f.fish||[]).length||(f.events||[]).length);if(lf&&(lf._stub||(emp(lf)&&!emp(rd)))){const keep={viewer:lf.viewer||'admin',_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(rd)),keep);this.base[id]=farmData(rd);this.saveBase();try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(D===lf){try{renderAll()}catch(e){}}return}
     if(!lf){R.farms[id]=Object.assign(JSON.parse(JS(rd)),{_shared:true});this.base[id]=farmData(rd);this.saveBase();return}
     const local=farmData(lf),base=this.base[id]||null,merged=merge3(base,local,rd);
     this.base[id]=rd;this.saveBase();
@@ -2223,7 +2223,7 @@ const Shared={base:{},subs:{},timer:null,started:false,pending:'',
   schedule(){if(!this.ok()||!this.started)return;clearTimeout(this.timer);this.timer=setTimeout(()=>this.pushAll(),1500)},
   dbg(){return {started:this.started,ok:this.ok(),base:Object.keys(this.base),timer:!!this.timer}},
   async pushAll(){for(const m of R.joined){const f=R.farms[m.farm];if(f&&f._shared)await this.push(f.id)}},
-  async push(id){const lf=R.farms[id];if(!lf||lf._stub||!this.ok())return;const local=farmData(lf),base=this.base[id];if(base&&JS(base)===JS(local))return;
+  async push(id){const lf=R.farms[id];if(!lf||lf._stub||!this.ok())return;if(!((lf.ponds||[]).length||(lf.fish||[]).length||(lf.events||[]).length)){try{const s0=await this.fref(id).get();const r0=s0.exists&&JSON.parse(s0.data().data);if(r0&&((r0.ponds||[]).length||(r0.fish||[]).length||(r0.events||[]).length)){this.applyRemote(id,r0);return}}catch(e){}}const local=farmData(lf),base=this.base[id];if(base&&JS(base)===JS(local))return;
     try{let out;await Cloud.db.runTransaction(async tx=>{const s=await tx.get(this.fref(id));const rd=s.exists?JSON.parse(s.data().data):base||local;out=merge3(base||null,local,rd);tx.update(this.fref(id),{data:JS(out),name:out.name||'',updatedAt:Date.now()})});
       const prevCodes=(base&&base.fish||[]).map(f=>f.code);this.base[id]=JSON.parse(JS(out));this.saveBase();
       if(JS(out)!==JS(local)){const keep={viewer:lf.viewer,_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(out)),keep);if(D===lf)renderAll()}
