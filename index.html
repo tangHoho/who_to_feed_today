@@ -113,7 +113,7 @@ h2.sec{font-family:var(--display);font-size:18px;margin:22px 0 10px}
 .dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
 
 .pond-wrap{position:relative;margin-top:10px;border-radius:22px;overflow:hidden;box-shadow:0 10px 30px -18px rgba(10,40,48,.6)}
-#pond{display:block;width:100%;height:330px;touch-action:manipulation;cursor:pointer}
+#pond{display:block;width:100%;height:330px;touch-action:none;cursor:pointer}
 html{-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body,button,a,label,input,select,textarea{touch-action:manipulation}
 input,select,textarea{font-size:16px!important}
@@ -618,7 +618,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.13.1';
+const APP_VER='v1.13.2';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -832,10 +832,10 @@ function syncEnts(){
   const cv=$('pond'),w=cv.clientWidth||340,h=cv.clientHeight||330;
   list.forEach(f=>{if(!sim.ents[f.id])sim.ents[f.id]={id:f.id,x:40+Math.random()*(w-80),y:70+Math.random()*(h-140),vx:0,vy:0,tx:w/2,ty:h/2,dir:Math.random()<.5?1:-1,phase:Math.random()*6,next:0}});
 }
-function resetPond(){sim.ents={};sim.pellets=[];sim.fx=[];syncEnts()}
+function resetPond(){sim.z=1;sim.ox=0;sim.oy=0;sim.ents={};sim.pellets=[];sim.fx=[];syncEnts()}
 let waterTop,waterBot,lastVar=0,lastT=0;
 function drawPond(t,dt){
-  const cv=$('pond');const {ctx,w,h}=fitCanvas(cv);
+  const cv=$('pond');const {ctx,w,h}=fitCanvas(cv);const Z=sim.z||1;ctx.save();ctx.transform(Z,0,0,Z,sim.ox||0,sim.oy||0);
   if(t-lastVar>1||!waterTop){waterTop=cssVar('--water-top');waterBot=cssVar('--water-bot');lastVar=t}
   const P2=pondById(pondSel)||{},WT2=pW(P2),dk2=isDark();const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,mix(dk2?WT2.wn:WT2.w,.12));g.addColorStop(1,dk2?WT2.bn:mix(WT2.b,-.15));ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
   const S2=R.style2d||'classic',STK=S2==='sticker',TANK=S2==='tank';if(t-(sim.insT||0)>1){sim.insT=t;const pp=$('pondPanel'),cr=cv.getBoundingClientRect();sim.visH=pp&&pp.getClientRects().length?Math.min(h,pp.getBoundingClientRect().top-cr.top+18):h}const visH=sim.visH||h,floorY=TANK?visH-Math.max(40,h*.07):h;
@@ -886,7 +886,7 @@ function drawPond(t,dt){
   if(PF2==='bubbles')for(let k=0;k<12;k++){const u=(t*.2+hash(k))%1;ctx.globalAlpha=1-u;ctx.strokeStyle='#E6FAFF';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(w*hash(k+5)+Math.sin(t*2+k)*4,h-u*h,3+k%3*2,0,Math.PI*2);ctx.stroke()}
   if(PF2==='snow')for(let k=0;k<40;k++){const u=(t*.05+hash(k))%1;ctx.globalAlpha=.9;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(w*hash(k+2)+Math.sin(t*.7+k)*10,-5+u*(h+10),1.5+k%3,0,Math.PI*2);ctx.fill()}
   if(PF2==='rain')for(let k=0;k<8;k++){const u=(t*.6+k/8)%1,n=Math.floor(t*.6+k/8);ctx.globalAlpha=(1-u)*.8;ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(w*hash(k*3+n),h*hash(k*5+n+1),4+u*26,(4+u*26)*.4,0,0,Math.PI*2);ctx.stroke()}
-  ctx.globalAlpha=1;ctx.shadowBlur=0;
+  ctx.globalAlpha=1;ctx.shadowBlur=0;ctx.restore();
   if(TANK)tankGlass(ctx,w,h,t);
   envOverlay2D(ctx,w,h,t);
 }
@@ -974,9 +974,16 @@ function baitMesh(k){const g=new THREE.Group(),A=(geo,c,x,y,z,o)=>{const m=new T
 function ateBait(f,e,kind){const b=BAITS.find(x=>x.id===kind);if(!b||!b.say)return;const now=performance.now()/1000;e.say={text:b.say,until:now+2.2};if(b.drunk)e.drunkUntil=now+8}
 function useFeed(){if(isAdmin())return true;const l=D.feedLog[D.viewer];const n=l&&l.date===TODAY?l.n:0;if(n>=FEED_LIMIT){toast('今天的飼料用完了，明天再來');return false}D.feedLog[D.viewer]={date:TODAY,n:n+1};save();return true}
 function addBonus(f){const b=D.feedBonus[f.id];if(!b||b.date!==TODAY)D.feedBonus[f.id]={date:TODAY,n:1};else if(b.n<5)b.n++;saveSoon();refreshRosterBars()}
+let pinch2d=null;
+{const cv=$('pond'),dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),mid=(a,b,r)=>[(a.clientX+b.clientX)/2-r.left,(a.clientY+b.clientY)/2-r.top];
+  const clamp=()=>{const w=cv.clientWidth,h=cv.clientHeight,Z=sim.z;sim.ox=Math.min(0,Math.max(w-w*Z,sim.ox));sim.oy=Math.min(0,Math.max(h-h*Z,sim.oy))};
+  cv.addEventListener('touchstart',e=>{if(e.touches.length===2){const r=cv.getBoundingClientRect(),m=mid(e.touches[0],e.touches[1],r);pinch2d={d:dist(e.touches[0],e.touches[1]),z:sim.z||1,wx:(m[0]-(sim.ox||0))/(sim.z||1),wy:(m[1]-(sim.oy||0))/(sim.z||1)};e.preventDefault()}},{passive:false});
+  cv.addEventListener('touchmove',e=>{if(pinch2d&&e.touches.length===2){const r=cv.getBoundingClientRect(),m=mid(e.touches[0],e.touches[1],r);sim.z=Math.max(1,Math.min(3,pinch2d.z*dist(e.touches[0],e.touches[1])/pinch2d.d));sim.ox=m[0]-pinch2d.wx*sim.z;sim.oy=m[1]-pinch2d.wy*sim.z;clamp();e.preventDefault()}},{passive:false});
+  cv.addEventListener('touchend',e=>{if(pinch2d&&e.touches.length<2){setTimeout(()=>pinch2d=null,120)}},{passive:true});
+  cv.addEventListener('wheel',e=>{const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,z0=sim.z||1,z=Math.max(1,Math.min(3,z0*(e.deltaY<0?1.1:1/1.1)));const wx=(mx-(sim.ox||0))/z0,wy=(my-(sim.oy||0))/z0;sim.z=z;sim.ox=mx-wx*z;sim.oy=my-wy*z;clamp();e.preventDefault()},{passive:false})}
 $('pond').addEventListener('pointerdown',ev=>{
-  const r=ev.currentTarget.getBoundingClientRect(),x=ev.clientX-r.left,y=ev.clientY-r.top;
-  for(const f of fishIn(pondSel)){const e=sim.ents[f.id];if(e&&Math.hypot(e.x-x,e.y-y)<fishSize(f)*.7){poke(f.id,x,y);return}}
+  if(pinch2d||(ev.pointerType==='touch'&&!ev.isPrimary))return;if(ev.pointerType==='touch'&&!ev._late){const cx=ev.clientX,cy=ev.clientY,tgt=ev.currentTarget;setTimeout(()=>{if(!pinch2d)tgt.dispatchEvent(Object.assign(new PointerEvent('pointerdown',{clientX:cx,clientY:cy,pointerType:'touch',isPrimary:true,bubbles:false}),{_late:true}))},110);return}const r=ev.currentTarget.getBoundingClientRect(),Z=sim.z||1,x=(ev.clientX-r.left-(sim.ox||0))/Z,y=(ev.clientY-r.top-(sim.oy||0))/Z;
+  for(const f of fishIn(pondSel)){const e=sim.ents[f.id];if(e&&Math.hypot(e.x-x,e.y-y)<fishSize(f)*.7){poke(f.id,x*Z+(sim.ox||0),y*Z+(sim.oy||0));return}}
   if(!useFeed())return;
   const bk=curBait().id;for(let i=0;i<(bk==='pellet'?3:1);i++)sim.pellets.push({x:x+(Math.random()-.5)*26,y:y+(Math.random()-.5)*10,life:6,s:Math.random()*6,kind:bk});
   renderFeedInfo();
