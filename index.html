@@ -626,7 +626,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.5';
+const APP_VER='v1.20.6';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1578,9 +1578,9 @@ function openAdmin(edit){const P=AP(),own=isAdmin();if(!own)edit=false;
   const prof=edit?`<div class="field"><span>頭像</span><div class="av-pick">${AV_PRESETS.map(e=>`<button type="button" class="av-opt" data-adminav="${e}" aria-pressed="${(P.avatar||'👑')===e}">${e}</button>`).join('')}<label class="av-opt av-up" aria-pressed="${/^data:/.test(P.avatar||'')}">${/^data:/.test(P.avatar||'')?`<img src="${P.avatar}" alt="">`:'📷'}<input type="file" id="avFile" accept="image/*" hidden></label></div><p class="tiny" style="color:var(--muted)">可以選一個圖示，或點相機上傳自己的照片（會自動裁成正方形）</p></div><div class="field"><span>魚塘名稱</span><input type="text" id="aFarm" maxlength="20" value="${esc(D.name)}"></div><div class="field"><span>暱稱</span><input type="text" id="aNick" maxlength="12" value="${esc(P.nick)}" placeholder="例如：魚塘一姐"></div><div class="field"><span>生日</span><input type="text" id="aBday" value="${esc(P.bday)}" placeholder="例如 05/20"></div><div class="field"><span>自我介紹</span><textarea id="aIntro" maxlength="120" placeholder="跟魚們說說你自己">${esc(P.intro)}</textarea></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="row mt"><button class="btn" data-saveadmin>儲存</button><button class="btn ghost" data-canceladmin>取消</button></div>`
     :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>自我介紹</dt><dd>${esc(P.intro)||'（還沒寫）'}</dd>${cfRows(P)}</dl>${own?`<button class="btn ghost small mt" data-editadmin>編輯塘主資料</button>`:''}`;
   openSheet(`${head('塘主資料')}<div class="adm-hero">${adminAvHTML()}<div><div class="adm-name">${esc(adminName())}</div><div class="adm-sub">${esc(D.name||'')} · ${D.ponds.length} 個魚池 · ${D.fish.length} 條魚</div></div></div>
-    <div class="stats"><div class="stat"><div class="k">累計赴約</div><div class="v">${done.length} 場</div></div><div class="stat"><div class="k">本月赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">即將到來</div><div class="v">${up} 個約</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div></div>
-    <h2 class="sec">約最多的魚</h2><div class="lb">${lb}</div>
-    <h2 class="sec">關於塘主</h2>${prof}`);
+    <h2 class="sec">關於塘主</h2>${prof}
+    <h2 class="sec">約相關紀錄</h2><div class="stats"><div class="stat"><div class="k">累計赴約</div><div class="v">${done.length} 場</div></div><div class="stat"><div class="k">本月赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">即將到來</div><div class="v">${up} 個約</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div></div>
+    <h2 class="sec">約最多的魚</h2><div class="lb">${lb}</div>`);
   document.querySelectorAll('[data-lbfish]').forEach(cv=>{const f=fishById(cv.dataset.lbfish);if(!f)return;const {ctx,w,h}=fitCanvas(cv);ctx.clearRect(0,0,w,h);drawFish(ctx,w/2,h/2+1,Math.min(w*.62,30),{...fishOpts(f),phase:1},0,1)})}
 function refreshAdminAv(){const h=document.querySelector('.adm-hero .adm-av');if(h)h.outerHTML=adminAvHTML();renderPond&&renderBoardOnly()}
 function renderBoardOnly(){try{if(view==='pond')renderPond()}catch(e){}}
