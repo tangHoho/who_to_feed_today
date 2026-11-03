@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.15.0';
+const APP_VER='v1.16.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1691,6 +1691,7 @@ function openMenu(){const list=D.notifs[D.viewer]||[],un=list.filter(x=>!x.read)
     <button class="mitem" id="menuNotif"><span>通知</span>${un?`<b class="mbadge">${un}</b>`:'<span class="mmuted">沒有新通知</span>'}</button>
     <div class="mitem static"><span>今日撒餌</span><span class="mmuted">${feedText()}</span></div>
     <button class="mitem" id="menuCalStyle"><span>行事曆樣式</span><span class="mmuted">${{full:'滿版',lines:'格線',card:'卡片'}[R.calLay||'full']} · ${{pill:'色條',fish:'小魚',fill:'塗色',dot:'點點'}[R.calMark||'pill']}</span></button>
+    <button class="mitem" id="bgmToggle" aria-pressed="${R.bgm!==false}"><span>背景音樂</span><span class="mmuted">${R.bgm!==false?'開':'關'}</span></button>
     <button class="mitem" id="sfxToggle" aria-pressed="${R.sfx!==false}"><span>音效</span><span class="mmuted">${R.sfx!==false?'開':'關'}</span></button>
     <button class="mitem" id="menuEnv"><span>天氣與時間</span><span class="mmuted">${$('envText').textContent}</span></button>
     <div class="mitem static"><span>2D 風格</span><div class="seg mini" role="group" aria-label="2D 風格">${[['classic','經典'],['sticker','貼紙'],['tank','水族箱']].map(([k,n])=>`<button data-style2d="${k}" aria-pressed="${(R.style2d||'classic')===k}">${n}</button>`).join('')}</div></div>
@@ -1933,6 +1934,7 @@ document.addEventListener('click',ev=>{
   if('saveevt' in d){saveEvent(d.saveevt);return}
   if(d.delevt){if(b.dataset.armed){D.events=D.events.filter(x=>x.id!==d.delevt);delete D.notes[d.delevt];save();closeSheet();renderAll();toast('行程已刪除')}else{b.dataset.armed='1';b.textContent='再點一次確定刪除'}return}
   if(d.evolve){promptEvolve(d.evolve);return}
+  if(b.id==='bgmToggle'){R.bgm=R.bgm===false;save();b.setAttribute('aria-pressed',R.bgm!==false);b.querySelector('.mmuted').textContent=R.bgm!==false?'開':'關';if(R.bgm!==false){BGM.wasOn=true;BGM.start()}else BGM.stop();return}
   if(b.id==='sfxToggle'){R.sfx=R.sfx===false;save();b.setAttribute('aria-pressed',R.sfx!==false);b.querySelector('.mmuted').textContent=R.sfx!==false?'開':'關';if(R.sfx!==false)SFX.play('ok');return}
   if(d.evoyes){SFX.play('evolve');const f=fishById(d.evoyes);f.level++;save();closeSheet();renderAll();toast(`${f.name} 長成「${LEVELS[f.level]}」了`);setTimeout(()=>openFish(f.id),300);return}
   if('cfadd' in d){const L=$('cfList');if(!L)return;const k=d.cfadd;if(L.children.length>=12){toast('最多 12 個自訂欄位');return}
@@ -1994,6 +1996,28 @@ const SFX={ctx:null,
     case 'evolve':[523,659,784,1047].forEach((f,i)=>this.tone(f,.28,{type:'triangle',v:.12,delay:i*.11}));this.tone(1568,.6,{v:.08,delay:.46});break;
     case 'ok':this.tone(880,.08,{type:'triangle',v:.08});this.tone(1320,.12,{type:'triangle',v:.07,delay:.07});break;
   }}catch(e){}}};
+
+/* ---------- 背景音樂：Web Audio 即時生成的溫柔音樂盒（不用音檔） ---------- */
+const BGM={on(){return R.bgm!==false},playing:false,timer:null,next:0,step:0,bar:0,master:null,delay:null,
+  init(){const a=SFX.ac();if(!a)return null;if(!this.master){this.master=a.createGain();this.master.gain.value=0;
+      const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;this.delay=a.createDelay(1);this.delay.delayTime.value=.42;const fb=a.createGain();fb.gain.value=.32;const wet=a.createGain();wet.gain.value=.28;
+      this.bus=a.createGain();this.bus.connect(lp);this.bus.connect(this.delay);this.delay.connect(fb).connect(this.delay);this.delay.connect(wet).connect(lp);lp.connect(this.master).connect(a.destination)}return a},
+  vol(){return .55*(R.bgmVol??.6)},
+  start(){if(this.playing||!this.on())return;const a=this.init();if(!a)return;this.playing=true;this.next=a.currentTime+.1;this.step=0;
+    this.master.gain.cancelScheduledValues(a.currentTime);this.master.gain.setTargetAtTime(this.vol(),a.currentTime,1.2);this.timer=setInterval(()=>this.tick(),120)},
+  stop(){if(!this.playing)return;const a=SFX.ac();this.playing=false;clearInterval(this.timer);if(a&&this.master){this.master.gain.cancelScheduledValues(a.currentTime);this.master.gain.setTargetAtTime(0,a.currentTime,.4)}},
+  note(f,t,d,{type='triangle',v=.08,attack=.01}={}){const a=SFX.ctx,o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+attack);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(this.bus);o.start(t);o.stop(t+d+.05)},
+  tick(){const a=SFX.ctx;if(!a)return;const night=(()=>{try{return envNight()}catch(e){return false}})();const bpm=night?66:80,eighth=60/bpm/2;
+    const prog=[[48,[60,64,67,71]],[45,[57,60,64,67]],[41,[57,60,65,69]],[43,[55,59,62,67]]];
+    while(this.next<a.currentTime+.6){const st=this.step%16,bar=Math.floor(this.step/16)%4,[bass,ch]=prog[bar],t=this.next,hz=m=>440*Math.pow(2,(m-69)/12);
+      if(st===0){ch.forEach((m,i)=>this.note(hz(m-12),t+i*.02,eighth*16,{type:'sine',v:.06,attack:.6}));this.note(hz(bass-12),t,eighth*7,{type:'sine',v:.16,attack:.02})}
+      if(st===8)this.note(hz(bass-5),t,eighth*7,{type:'sine',v:.11,attack:.02});
+      const pent=[0,2,4,7,9],dens=night?.28:.42;
+      if(Math.random()<dens&&st%2===0||st===0){const pick=Math.random()<.6?ch[Math.floor(Math.random()*ch.length)]+12:72+pent[Math.floor(Math.random()*5)]+(Math.random()<.3?12:0);
+        this.note(hz(night?pick-12:pick),t,eighth*3,{type:'triangle',v:.1});this.note(hz((night?pick-12:pick)+12),t,eighth*1.5,{type:'sine',v:.03})}
+      this.next+=eighth;this.step++}}};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)BGM.stop();else if(BGM.on()&&BGM.wasOn)BGM.start()});
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(BGM.on()&&!BGM.playing){BGM.wasOn=true;BGM.start()}},{passive:true}));
 const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:0,err:'',
   async init(){const C=window.FIREBASE_CONFIG||{};if(!C.apiKey){this.state='off';this.render();return}
     this.state='loading';this.render();
