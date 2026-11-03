@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.18.0';
+const APP_VER='v1.19.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1691,7 +1691,7 @@ function openMenu(){const list=D.notifs[D.viewer]||[],un=list.filter(x=>!x.read)
     <button class="mitem" id="menuNotif"><span>通知</span>${un?`<b class="mbadge">${un}</b>`:'<span class="mmuted">沒有新通知</span>'}</button>
     <div class="mitem static"><span>今日撒餌</span><span class="mmuted">${feedText()}</span></div>
     <button class="mitem" id="menuCalStyle"><span>行事曆樣式</span><span class="mmuted">${{full:'滿版',lines:'格線',card:'卡片'}[R.calLay||'full']} · ${{pill:'色條',fish:'小魚',fill:'塗色',dot:'點點'}[R.calMark||'pill']}</span></button>
-    <div class="mitem static"><span>背景音樂</span><div class="seg mini" role="group" aria-label="背景音樂">${[['happy','輕快'],['calm','溫柔'],['off','關']].map(([k,n])=>`<button data-bgmstyle="${k}" aria-pressed="${(R.bgm===false?'off':(R.bgmStyle||'happy'))===k}">${n}</button>`).join('')}</div></div>
+    <div class="mitem static"><span>背景音樂</span><div class="seg mini" role="group" aria-label="背景音樂">${[['fish','漁場'],['happy','輕快'],['calm','溫柔'],['off','關']].map(([k,n])=>`<button data-bgmstyle="${k}" aria-pressed="${(R.bgm===false?'off':(R.bgmStyle||'fish'))===k}">${n}</button>`).join('')}</div></div>
     <button class="mitem" id="ambToggle" aria-pressed="${R.amb!==false}"><span>環境音（魚池）</span><span class="mmuted">${R.amb!==false?'開':'關'}</span></button>
     <button class="mitem" id="sfxToggle" aria-pressed="${R.sfx!==false}"><span>音效</span><span class="mmuted">${R.sfx!==false?'開':'關'}</span></button>
     <button class="mitem" id="menuEnv"><span>天氣與時間</span><span class="mmuted">${$('envText').textContent}</span></button>
@@ -1935,7 +1935,7 @@ document.addEventListener('click',ev=>{
   if('saveevt' in d){saveEvent(d.saveevt);return}
   if(d.delevt){if(b.dataset.armed){D.events=D.events.filter(x=>x.id!==d.delevt);delete D.notes[d.delevt];save();closeSheet();renderAll();toast('行程已刪除')}else{b.dataset.armed='1';b.textContent='再點一次確定刪除'}return}
   if(d.evolve){promptEvolve(d.evolve);return}
-  if(d.bgmstyle){const k=d.bgmstyle;document.querySelectorAll('[data-bgmstyle]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.bgmstyle===k));if(k==='off'){R.bgm=false;BGM.stop()}else{const changed=(R.bgmStyle||'happy')!==k;R.bgm=true;R.bgmStyle=k;if(changed&&BGM.playing){BGM.stop();setTimeout(()=>{BGM.wasOn=true;BGM.start()},450)}else{BGM.wasOn=true;BGM.start()}}save();return}
+  if(d.bgmstyle){const k=d.bgmstyle;document.querySelectorAll('[data-bgmstyle]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.bgmstyle===k));if(k==='off'){R.bgm=false;BGM.stop()}else{const changed=(R.bgmStyle||'fish')!==k;R.bgm=true;R.bgmStyle=k;if(changed&&BGM.playing){BGM.stop();setTimeout(()=>{BGM.wasOn=true;BGM.start()},450)}else{BGM.wasOn=true;BGM.start()}}save();return}
   if(b.id==='bgmToggle'){R.bgm=R.bgm===false;save();b.setAttribute('aria-pressed',R.bgm!==false);b.querySelector('.mmuted').textContent=R.bgm!==false?'開':'關';if(R.bgm!==false){BGM.wasOn=true;BGM.start()}else BGM.stop();return}
   if(b.id==='ambToggle'){R.amb=R.amb===false;save();b.setAttribute('aria-pressed',R.amb!==false);b.querySelector('.mmuted').textContent=R.amb!==false?'開':'關';if(R.amb===false)AMB.stop();return}
   if(b.id==='sfxToggle'){R.sfx=R.sfx===false;save();b.setAttribute('aria-pressed',R.sfx!==false);b.querySelector('.mmuted').textContent=R.sfx!==false?'開':'關';if(R.sfx!==false)SFX.play('ok');return}
@@ -2022,7 +2022,29 @@ const BGM={on(){return R.bgm!==false},playing:false,timer:null,next:0,step:0,bar
       if(st%2===0){const r=riffs[(bar+phrase)%4][st/2];if(r>=0&&Math.random()<(night?.55:.85)){const deg=r,oct=Math.floor(deg/7),m=72+scale[((deg%7)+7)%7]+oct*12-(night?12:0);
         this.note(hz(m),t,eighth*1.3,{type:'sine',v:.11,attack:.003});this.note(hz(m+12),t,eighth*.6,{type:'sine',v:.025,attack:.003})}}
       this.next+=eighth;this.step++}},
-  tick(){const a=SFX.ctx;if(!a)return;if((R.bgmStyle||'happy')==='happy'){let night=false;try{night=envNight()}catch(e){}return this.tickHappy(a,night)}const night=(()=>{try{return envNight()}catch(e){return false}})();const bpm=night?66:80,eighth=60/bpm/2;
+
+  /* 漁場：6/8 搖擺的小船節奏，木琴旋律＋烏克麗麗撥弦＋木魚，開心但不吵 */
+  pluck(f,t,d,v,bright=2400){const a=SFX.ctx,o=a.createOscillator(),lp=a.createBiquadFilter(),g=a.createGain();o.type='sawtooth';o.frequency.value=f;lp.type='lowpass';lp.frequency.setValueAtTime(bright,t);lp.frequency.exponentialRampToValueAtTime(500,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(lp).connect(g).connect(this.bus);o.start(t);o.stop(t+d+.05)},
+  marimba(f,t,d,v){this.note(f,t,d,{type:'sine',v,attack:.004});this.note(f*4,t,Math.min(.12,d*.4),{type:'sine',v:v*.18,attack:.002})},
+  wood(t,f,v){this.note(f,t,.06,{type:'sine',v,attack:.002})},
+  FISH:{chords:[[48,[60,64,67]],[41,[60,65,69]],[43,[59,62,67]],[48,[60,64,67]],[45,[60,64,69]],[41,[60,65,69]],[43,[59,62,65,67]],[48,[60,64,67]],
+                [41,[60,65,69]],[48,[60,64,67]],[43,[59,62,67]],[48,[60,64,67]],[41,[60,65,69]],[48,[60,64,67]],[43,[59,62,65,67]],[48,[60,64,67]]],
+    mel:[[[76,2],[79,1],[84,2],[79,1]],[[81,2],[77,1],[81,1],[84,1],[81,1]],[[79,2],[74,1],[79,2],[83,1]],[[84,3],[-1,1],[79,1],[76,1]],
+         [[81,2],[84,1],[88,2],[84,1]],[[81,1],[79,1],[77,1],[81,2],[77,1]],[[79,2],[77,1],[74,2],[71,1]],[[72,3],[-1,3]],
+         [[84,1],[81,1],[77,1],[81,2],[84,1]],[[79,2],[76,1],[72,2],[76,1]],[[74,1],[76,1],[77,1],[79,2],[83,1]],[[84,2],[79,1],[76,3]],
+         [[77,1],[81,1],[84,1],[89,2],[88,1]],[[88,1],[86,1],[84,1],[79,3]],[[81,1],[83,1],[84,1],[86,2],[83,1]],[[84,3],[-1,3]]]},
+  tickFish(a,night){const E=night?.29:.215,hz=m=>440*Math.pow(2,(m-69)/12),F=this.FISH;
+    while(this.next<a.currentTime+.6){const st=this.step%6,bar=Math.floor(this.step/6)%16,loop=Math.floor(this.step/96),[bass,ch]=F.chords[bar],t=this.next+(st%3===1?E*.06:0);
+      if(st===0)this.note(hz(bass-12),t,E*2.6,{type:'triangle',v:.17,attack:.005});
+      if(st===3)this.note(hz(bass-5),t,E*2.2,{type:'triangle',v:.12,attack:.005});
+      if(st===1||st===2||st===4||st===5){const v=(st===1||st===4?.032:.022)*(night?.7:1);ch.forEach((m,i)=>this.pluck(hz(m),t+i*.012,E*1.4,v,night?1500:2600))}
+      if(!night){if(st===0||st===3)this.wood(t,st===0?820:1040,.05);if(st===2||st===5)this.shaker(t,.022)}
+      let pos=0;for(const [m,len] of F.mel[bar]){if(pos===st&&m>0){const mm=night?m-12:m,v=night?.09:.12;this.marimba(hz(mm),t,E*len*1.15+.08,v);
+          if(loop%2===1&&!night&&bar>=8)this.note(hz(mm+12),t+.005,E*.8,{type:'sine',v:.022,attack:.002})}pos+=len}
+      this.next+=E;this.step++}},
+  tick(){const a=SFX.ctx;if(!a)return;if((R.bgmStyle||'fish')==='fish'){let night=false;try{night=envNight()}catch(e){}return this.tickFish(a,night)}
+  if((R.bgmStyle||'fish')==='happy'){let night=false;try{night=envNight()}catch(e){}return this.tickHappy(a,night)}const night=(()=>{try{return envNight()}catch(e){return false}})();const bpm=night?66:80,eighth=60/bpm/2;
     const prog=[[48,[60,64,67,71]],[45,[57,60,64,67]],[41,[57,60,65,69]],[43,[55,59,62,67]]];
     while(this.next<a.currentTime+.6){const st=this.step%16,bar=Math.floor(this.step/16)%4,[bass,ch]=prog[bar],t=this.next,hz=m=>440*Math.pow(2,(m-69)/12);
       if(st===0){ch.forEach((m,i)=>this.note(hz(m-12),t+i*.02,eighth*16,{type:'sine',v:.06,attack:.6}));this.note(hz(bass-12),t,eighth*7,{type:'sine',v:.16,attack:.02})}
