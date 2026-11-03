@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.2';
+const APP_VER='v1.20.3';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -2165,8 +2165,8 @@ const Rescue={async readAt(path,ms,tok){const pid=(window.FIREBASE_CONFIG||{}).p
   score(f){return (f.ponds||[]).length+(f.fish||[]).length*2+(f.events||[]).length*2},
   async open(){if(!Cloud.user){toast('要先登入');return}const uid=Cloud.user.uid;openSheet(`${head('救回雲端舊資料')}<div id="rescueBox"><p>讀取雲端最近 1 小時的歷史版本中…</p></div>`);
     try{const tok=await Cloud.user.getIdToken(),now=Date.now(),mins=[1,3,6,10,15,20,25,30,35,40,45,50,55,58],ids=new Map();
-      Object.values(R.farms||{}).forEach(f=>{if(f._shared&&(!f._owner||f._owner===uid))ids.set(f.id,f.name)});
-      for(const m of [58,40,20,5]){try{const u=await this.readAt('feedwho_users/'+uid,now-m*6e4,tok);const sv=u&&u.save&&JSON.parse(u.save.stringValue);Object.values(sv&&sv.farms||{}).forEach(f=>{if(f._shared&&(!f._owner||f._owner===uid))ids.set(f.id,f.name)})}catch(e){}}
+      Object.values(R.farms||{}).forEach(f=>{if(f._shared||/^f[a-z0-9]{8}/.test(f.id||''))ids.set(f.id,f.name)});
+      for(const m of [58,40,20,5]){try{const u=await this.readAt('feedwho_users/'+uid,now-m*6e4,tok);const sv=u&&u.save&&JSON.parse(u.save.stringValue);Object.values(sv&&sv.farms||{}).forEach(f=>{if(f&&f.id)ids.set(f.id,f.name)})}catch(e){}}
       this.found=[];for(const [id,name] of ids){for(const m of mins){try{const fd=await this.readAt('feedwho_farms/'+id,now-m*6e4,tok);if(!fd||!fd.data)continue;const rd=JSON.parse(fd.data.stringValue);this.found.push({id,m,rd,sc:this.score(rd)})}catch(e){if(/HTTP 4/.test(e.message)&&m===1){}}}}
       const best=new Map();this.found.forEach(x=>{const b=best.get(x.id);if(!b||x.sc>b.sc)best.set(x.id,x)});
       const box=$('rescueBox');if(!box)return;
