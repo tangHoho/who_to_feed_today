@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.19.0';
+const APP_VER='v1.19.1';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -2067,15 +2067,15 @@ const AMB={on(){return R.amb!==false},running:false,out:null,beds:{},timers:[],
   setBed(name,v){const b=this.beds[name];if(b)b.g.gain.setTargetAtTime(v,SFX.ctx.currentTime,.8)},
   start(){if(this.running||!this.on())return;const a=SFX.ac();if(!a)return;this.running=true;
     if(!this.out){this.out=a.createGain();this.out.gain.value=0;this.out.connect(a.destination);this.bufs={brown:this.noiseBuf('brown'),pink:this.noiseBuf('pink'),white:this.noiseBuf('white')};
-      this.bed('water','brown','lowpass',520,.6,.32,.12,.08);
-      this.bed('leaves','pink','bandpass',1800,.8,.05,.07,.035);
+      this.bed('water','brown','lowpass',420,.6,.2,.12,.04);
+      this.bed('leaves','pink','bandpass',2200,.8,.015,.07,.008);
       this.bed('rain','white','highpass',2500,.5,.0,0,0);
       this.bed('rainLow','pink','lowpass',900,.5,.0,0,0)}
     this.out.gain.setTargetAtTime(.9*(R.ambVol??.7),a.currentTime,1);this.update();this.loop()},
   stop(){if(!this.running)return;this.running=false;this.timers.forEach(clearTimeout);this.timers=[];if(this.out)this.out.gain.setTargetAtTime(0,SFX.ctx.currentTime,.5)},
   env(){try{return envNow()}catch(e){return {phase:'day',wx:'clear',night:false}}},
   update(){if(!this.running)return;const E=this.env(),wet=E.wx==='rain'||E.wx==='thunder';
-    this.setBed('water',wet?.22:.32);this.setBed('leaves',E.wx==='fog'?.02:(wet?.08:.05));this.setBed('rain',wet?(E.wx==='thunder'?.09:.06):0);this.setBed('rainLow',wet?.18:0)},
+    this.setBed('water',wet?.14:.2);this.setBed('leaves',E.wx==='fog'?.006:(wet?.03:.015));this.setBed('rain',wet?(E.wx==='thunder'?.09:.06):0);this.setBed('rainLow',wet?.18:0)},
   later(fn,ms){const t=setTimeout(()=>{this.timers=this.timers.filter(x=>x!==t);if(this.running)fn()},ms);this.timers.push(t)},
   loop(){const E=this.env(),night=E.phase==='night'||E.phase==='dusk',wet=E.wx==='rain'||E.wx==='thunder'||E.wx==='snow';
     this.update();
