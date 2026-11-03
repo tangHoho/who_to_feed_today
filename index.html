@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.19.4';
+const APP_VER='v1.20.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -2104,6 +2104,16 @@ const AMB={on(){return R.amb!==false},running:false,out:null,beds:{},timers:[],
     const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.5,t+.15);g.gain.exponentialRampToValueAtTime(.0001,t+3.2);src.connect(f).connect(g).connect(this.out);src.start(t,Math.random());src.stop(t+3.3)}};
 setInterval(()=>{const want=AMB.on()&&view==='pond'&&!document.hidden&&SFX.ctx&&SFX.ctx.state==='running';if(want&&!AMB.running)AMB.start();else if(!want&&AMB.running)AMB.stop();else if(AMB.running)AMB.update()},1000);
 ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{if(AMB.on())SFX.ac()},{passive:true}));
+
+/* ---------- 新版本偵測：開啟、回到前景、每 5 分鐘檢查一次，有新版就跳出「點一下更新」 ---------- */
+const Upd={shown:false,last:0,async check(force){if(!/^https?:/.test(location.protocol)||location.hostname.endsWith('claude.ai')||this.shown)return;const now=Date.now();if(!force&&now-this.last<60e3)return;this.last=now;
+    try{const r=await fetch(location.pathname+'?_='+now,{cache:'no-store'});if(!r.ok)return;const m=(await r.text()).match(/APP_VER='([^']+)'/);if(m&&m[1]!==APP_VER)this.show(m[1])}catch(e){}},
+  show(v){this.shown=true;const b=document.createElement('button');b.id='updBar';b.textContent=`🐟 有新版本 ${v}，點一下更新`;
+    b.style.cssText='position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);z-index:9999;border:0;border-radius:999px;padding:10px 18px;font:700 14px/1.2 inherit;background:#1f4d4f;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer;white-space:nowrap';
+    b.onclick=()=>{try{save()}catch(e){}location.replace(location.pathname+'?v='+encodeURIComponent(v)+location.hash)};document.body.appendChild(b)}};
+try{const u=new URL(location.href);if(u.searchParams.has('v')){u.searchParams.delete('v');history.replaceState(null,'',u.pathname+(u.search||'')+u.hash)}}catch(e){}
+setTimeout(()=>Upd.check(true),3000);setInterval(()=>Upd.check(),5*60e3);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)Upd.check()});
 const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:0,err:'',
   async init(){const C=window.FIREBASE_CONFIG||{};if(!C.apiKey){this.state='off';this.render();return}
     this.state='loading';this.render();
