@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.13.8';
+const APP_VER='v1.14.0';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1798,7 +1798,7 @@ function openFish(id,keepEdit){curFish=id;
   const nxt=f.level<4?NEED[f.level+1]-f.meets:0;
   const hist=D.events.filter(e=>e.done&&e.ppl.includes(f.id)).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   const P=f.profile;
-  const prof=editingProfile?`<div class="field"><span>生日</span><input type="text" id="pBday" value="${esc(P.bday)}" placeholder="例如 03/14"></div><div class="field"><span>喜好</span><input type="text" id="pLikes" value="${esc(P.likes)}"></div><div class="field"><span>忌口</span><input type="text" id="pDis" value="${esc(P.dislikes)}"></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="field"><span>想對塘主說的話</span><textarea id="pMsg">${esc(P.msg)}</textarea></div><div class="row mt"><button class="btn" data-saveprof="${f.id}">儲存小檔案</button><button class="btn ghost" data-cancelprof="${f.id}">取消</button></div>`
+  const prof=editingProfile?`<div class="field"><span>名字</span><input type="text" id="pName2" maxlength="12" value="${esc(f.name)}"></div><div class="field"><span>生日</span><input type="text" id="pBday" value="${esc(P.bday)}" placeholder="例如 03/14"></div><div class="field"><span>喜好</span><input type="text" id="pLikes" value="${esc(P.likes)}"></div><div class="field"><span>忌口</span><input type="text" id="pDis" value="${esc(P.dislikes)}"></div><div class="field"><span>自訂欄位</span><div id="cfList">${(P.custom||[]).map(c=>cfRow(c.k,c.v)).join('')}</div><div class="cf-presets">${CF_PRESETS.map(([k])=>`<button type="button" class="chip" data-cfadd="${k}">＋ ${k}</button>`).join('')}<button type="button" class="chip" data-cfadd="">＋ 自己取名</button></div></div><div class="field"><span>想對塘主說的話</span><textarea id="pMsg">${esc(P.msg)}</textarea></div><div class="row mt"><button class="btn" data-saveprof="${f.id}">儲存小檔案</button><button class="btn ghost" data-cancelprof="${f.id}">取消</button></div>`
     :`<dl class="prof"><dt>生日</dt><dd>${esc(P.bday)||'—'}</dd><dt>喜好</dt><dd>${esc(P.likes)||'—'}</dd><dt>忌口</dt><dd>${esc(P.dislikes)||'—'}</dd>${cfRows(P)}<dt>想對塘主說</dt><dd>${esc(P.msg)||'（還沒寫）'}</dd></dl>${canEdit(f)?`<button class="btn ghost small mt" data-editprof="${f.id}">編輯小檔案</button>`:''}`;
   const style=canDress(f)?`<button class="btn mt" style="width:100%" data-wardrobe="${f.id}">打開衣櫥換造型</button>`:'';
   openSheet(`${head(esc(f.name))}
@@ -1939,8 +1939,8 @@ document.addEventListener('click',ev=>{
   if('cfdel' in d){b.closest('.cf-row')?.remove();return}
   if(d.editprof){editingProfile=true;openFish(d.editprof,true);return}
   if(d.cancelprof){editingProfile=false;openFish(d.cancelprof,true);return}
-  if(d.saveprof){const f=fishById(d.saveprof);const custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);f.profile={bday:$('pBday').value.trim(),likes:$('pLikes').value.trim(),dislikes:$('pDis').value.trim(),msg:$('pMsg').value.trim(),custom};
-    if(!isAdmin()&&f.profile.msg)notify('admin',`${f.name} 更新了想對你說的話：${f.profile.msg}`);editingProfile=false;save();renderViewer();openFish(f.id,true);toast('小檔案已儲存');return}
+  if(d.saveprof){const f=fishById(d.saveprof);const nn=($('pName2')?.value||'').trim();if(!nn){toast('名字不能空白');return}if(nn!==f.name){const old=f.name;f.name=nn;if(!isAdmin())notify('admin',`${old} 把名字改成「${nn}」`)}const custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);f.profile={bday:$('pBday').value.trim(),likes:$('pLikes').value.trim(),dislikes:$('pDis').value.trim(),msg:$('pMsg').value.trim(),custom};
+    if(!isAdmin()&&f.profile.msg)notify('admin',`${f.name} 更新了想對你說的話：${f.profile.msg}`);editingProfile=false;save();renderAll();openFish(f.id,true);toast('小檔案已儲存');return}
   if(d.col||d.hat||d.acc){const f=me();if(!f)return;if(d.col)f.color=d.col;if(d.hat)f.hat=d.hat;if(d.acc)f.acc=d.acc;save();
     const sel=d.col?'[data-col]':d.hat?'[data-hat]':'[data-acc]';document.querySelectorAll(sel).forEach(x=>x.setAttribute('aria-pressed',x===b));renderPond();renderDex();return}
   if(b.id==='bell'){openMenu();return}
