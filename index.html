@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.1';
+const APP_VER='v1.20.2';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1889,6 +1889,8 @@ document.addEventListener('click',ev=>{
   if(b.id==='cloudLogin'){Cloud.google();return}
   if(b.id==='cloudLogout'){Cloud.logout();return}
   if(b.id==='cloudSync'){Cloud.pull(true);return}
+  if(b.id==='cloudRescue'){Rescue.open();return}
+  if(b.dataset.rescue!=null){Rescue.restore(+b.dataset.rescue);return}
   if(b.id==='menuBait'){openBaitPicker();return}
   if(b.id==='menuSwitch'){closeSheet();showView('home');return}
   if(b.id==='addMenu'){openAddMenu();return}
@@ -2129,7 +2131,7 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
         const score=x=>{try{return Object.values(x.farms||{}).reduce((a,f)=>a+(f.ponds||[]).length+(f.fish||[]).length*2+(f.events||[]).length*2,0)}catch(e){return 0}};
         if(!takeRemote&&score(remote)>score(R)&&bodyOf(remote)!==bodyOf(R)&&confirm(`雲端存檔的資料比這支手機多：\n雲端：${summary(remote)}\n這支手機：${summary(R)||'（空）'}\n\n按「確定」改用雲端存檔（手機目前的資料會先自動備份）\n按「取消」用手機的資料覆蓋雲端`))takeRemote=true;
         if(takeRemote&&remote.resetAt&&(remote.resetAt>(R.resetAt||0))&&bodyOf(remote)!==bodyOf(R)&&!confirm('雲端的存檔是剛被「清除全部資料」的版本。\n\n按「確定」用雲端的空資料（這台手機的資料會先自動備份）\n按「取消」保留這台手機的資料並上傳到雲端'))takeRemote=false;
-        if(takeRemote){backupLocal('載入雲端前自動備份');Object.keys(remote.farms||{}).forEach(id=>{const f=remote.farms[id];if(f&&f._stub){if(R.farms[id]&&!R.farms[id]._stub)remote.farms[id]=R.farms[id];else remote.farms[id]=Object.assign(blankFarm(),{id,name:f.name,_shared:true,_owner:f._owner})}});remote.syncUid=uid;localStorage.setItem(KEY,JSON.stringify(remote));toast('已載入雲端存檔');setTimeout(()=>location.reload(),600);return}}
+        if(takeRemote){backupLocal('載入雲端前自動備份');Object.keys(remote.farms||{}).forEach(id=>{const f=remote.farms[id];if(f&&f._stub){if(R.farms[id]&&!R.farms[id]._stub)remote.farms[id]=R.farms[id];else remote.farms[id]=Object.assign(blankFarm(),{id,name:f.name,_shared:true,_owner:f._owner,_stub:true})}});remote.syncUid=uid;localStorage.setItem(KEY,JSON.stringify(remote));toast('已載入雲端存檔');setTimeout(()=>location.reload(),600);return}}
       await this.push();if(manual)toast('已同步');Shared.start()}catch(e){this.syncError(e);Shared.start()}},
   async push(){if(!this.user)return;clearTimeout(this.timer);this.timer=null;this.busy=true;
     try{R.syncUid=this.user.uid;try{localStorage.setItem(KEY,JSON.stringify(R))}catch(_){}
@@ -2152,10 +2154,30 @@ const Cloud={state:'off',user:null,timer:null,auth:null,db:null,busy:false,last:
       box.innerHTML=u?`${u.photoURL?`<img class="av" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer">`:`<span class="av">${esc((u.displayName||'?')[0])}</span>`}<div class="info"><b>${esc(u.displayName||u.email||'已登入')}</b><small>${esc(this.status())}</small></div><button class="btn small ghost" id="menuAcct">帳號</button>`
         :`<div class="info"><b>Google 登入</b><small>${esc(this.status())}</small></div>${this.state==='off'?'':`<button class="gbtn" id="cloudLogin">${GICON}登入</button>`}`}
     if(this.sheetOpen&&!$('scrim').hidden&&$('acctSheet'))this.sheet()},
-  sheet(){const u=this.user;this.sheetOpen=true;openSheet(`${head('帳號與雲端同步')}<div id="acctSheet">${u?`<p><b>${esc(u.displayName||'')}</b><br><span class="tiny">${esc(u.email||'')}</span></p><p class="tiny">${esc(this.status())}</p><div class="row mt"><button class="btn" id="cloudSync">立即同步</button><button class="btn ghost" id="cloudLogout">登出</button></div>`
+  sheet(){const u=this.user;this.sheetOpen=true;openSheet(`${head('帳號與雲端同步')}<div id="acctSheet">${u?`<p><b>${esc(u.displayName||'')}</b><br><span class="tiny">${esc(u.email||'')}</span></p><p class="tiny">${esc(this.status())}</p><div class="row mt"><button class="btn" id="cloudSync">立即同步</button><button class="btn ghost" id="cloudLogout">登出</button></div><button class="btn ghost mt" id="cloudRescue" style="width:100%">資料不見了？救回雲端 1 小時內的舊版本</button>`
       :`<p>${esc(this.status())}</p>${this.state==='off'?'':`<button class="gbtn mt" id="cloudLogin">${GICON}用 Google 登入</button>`}`}<p class="tiny mt" style="color:var(--muted)">登入後，你的魚塘、魚池、行事曆和造型會存到雲端，換手機也看得到。</p></div>`)}
 };
 window.__cloud=Cloud;
+
+/* ---------- 救回雲端 1 小時內的舊版本（Firestore 保留 1 小時歷史，用 REST readTime 讀） ---------- */
+const Rescue={async readAt(path,ms,tok){const pid=(window.FIREBASE_CONFIG||{}).projectId;const u=`https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/${path}?readTime=${new Date(ms).toISOString()}`;
+    const r=await fetch(u,{headers:{Authorization:'Bearer '+tok}});if(r.status===404)return null;if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();return j.fields||null},
+  score(f){return (f.ponds||[]).length+(f.fish||[]).length*2+(f.events||[]).length*2},
+  async open(){if(!Cloud.user){toast('要先登入');return}const uid=Cloud.user.uid;openSheet(`${head('救回雲端舊資料')}<div id="rescueBox"><p>讀取雲端最近 1 小時的歷史版本中…</p></div>`);
+    try{const tok=await Cloud.user.getIdToken(),now=Date.now(),mins=[1,3,6,10,15,20,25,30,35,40,45,50,55,58],ids=new Map();
+      Object.values(R.farms||{}).forEach(f=>{if(f._shared&&(!f._owner||f._owner===uid))ids.set(f.id,f.name)});
+      for(const m of [58,40,20,5]){try{const u=await this.readAt('feedwho_users/'+uid,now-m*6e4,tok);const sv=u&&u.save&&JSON.parse(u.save.stringValue);Object.values(sv&&sv.farms||{}).forEach(f=>{if(f._shared&&(!f._owner||f._owner===uid))ids.set(f.id,f.name)})}catch(e){}}
+      this.found=[];for(const [id,name] of ids){for(const m of mins){try{const fd=await this.readAt('feedwho_farms/'+id,now-m*6e4,tok);if(!fd||!fd.data)continue;const rd=JSON.parse(fd.data.stringValue);this.found.push({id,m,rd,sc:this.score(rd)})}catch(e){if(/HTTP 4/.test(e.message)&&m===1){}}}}
+      const best=new Map();this.found.forEach(x=>{const b=best.get(x.id);if(!b||x.sc>b.sc)best.set(x.id,x)});
+      const box=$('rescueBox');if(!box)return;
+      if(!best.size){box.innerHTML='<p>找不到任何雲端歷史版本。</p>';return}
+      box.innerHTML=[...best.values()].map((x,i)=>`<div class="card mt"><b>${esc(x.rd.name||x.id)}</b><p class="tiny">約 ${x.m} 分鐘前的版本：${(x.rd.ponds||[]).length} 池、${(x.rd.fish||[]).length} 隻魚、${(x.rd.events||[]).length} 個行程</p><p class="tiny">現在手機上：${(()=>{const f=R.farms[x.id];return f?`${(f.ponds||[]).length} 池、${(f.fish||[]).length} 隻魚、${(f.events||[]).length} 個行程`:'沒有'})()}</p><button class="btn mt" data-rescue="${i}">用這個版本救回</button></div>`).join('');
+      this.best=[...best.values()]}catch(e){const box=$('rescueBox');if(box)box.innerHTML='<p>讀取失敗：'+esc(e.message||String(e))+'</p>'}},
+  async restore(i){const x=this.best&&this.best[i];if(!x)return;if(!confirm(`用「${x.rd.name}」約 ${x.m} 分鐘前的版本取代現在的魚塘，並寫回雲端？`))return;
+    backupLocal('救回雲端舊資料前自動備份');const uid=Cloud.user.uid,old=R.farms[x.id]||{};
+    R.farms[x.id]=Object.assign(JSON.parse(JS(x.rd)),{viewer:old.viewer||'admin',_shared:true,_owner:old._owner||uid});
+    if(!R.joined.some(m=>m.farm===x.id))R.joined.push({farm:x.id,viewer:'admin'});
+    try{await Shared.fref(x.id).update({data:JS(x.rd),name:x.rd.name||'',updatedAt:Date.now()});Shared.base[x.id]=farmData(x.rd);Shared.saveBase();save();closeSheet();renderAll();toast('救回來了！')}catch(e){Cloud.syncError(e)}}};
 /* ---------- 共用魚塘：塘主把魚塘放到雲端，魚用邀請碼加入 ---------- */
 const JS=x=>JSON.stringify(x);
 function merge3(b,l,r){
@@ -2172,7 +2194,7 @@ function merge3(b,l,r){
       if(!(k in r)){if(k in bb&&JS(bb[k])===JS(l[k]))return;o[k]=l[k];return}
       o[k]=merge3(bb[k],l[k],r[k])});return o}
   return l}
-const farmData=f=>{const c=JSON.parse(JSON.stringify(f));delete c.viewer;delete c._shared;delete c._owner;return c};
+const farmData=f=>{const c=JSON.parse(JSON.stringify(f));delete c._stub;delete c.viewer;delete c._shared;delete c._owner;return c};
 const Shared={base:{},subs:{},timer:null,started:false,pending:'',
   loadBase(){try{this.base=JSON.parse(localStorage.getItem('feedwho-shared-base'))||{}}catch(e){this.base={}}},
   saveBase(){try{localStorage.setItem('feedwho-shared-base',JSON.stringify(this.base))}catch(e){}},
@@ -2189,8 +2211,9 @@ const Shared={base:{},subs:{},timer:null,started:false,pending:'',
     R.joined.forEach(m=>{const f=R.farms[m.farm];if(f&&f._shared)this.listen(f.id)});
     if(this.pending){const c=this.pending;this.pending='';this.join(c)}},
   listen(id){if(this.subs[id])return;this.subs[id]=this.fref(id).onSnapshot(s=>{if(!s.exists)return;let rd;try{rd=JSON.parse(s.data().data)}catch(e){return}this.applyRemote(id,rd)},e=>console.warn('[Shared]',id,e.code))},
-  applyRemote(id,rd){const lf=R.farms[id];if(!lf){R.farms[id]=Object.assign(JSON.parse(JS(rd)),{_shared:true});this.base[id]=farmData(rd);this.saveBase();return}
-    const local=farmData(lf),base=this.base[id]||rd,merged=merge3(base,local,rd);
+  applyRemote(id,rd){const lf=R.farms[id];if(lf&&lf._stub){const keep={viewer:lf.viewer||'admin',_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(rd)),keep);this.base[id]=farmData(rd);this.saveBase();try{localStorage.setItem(KEY,JSON.stringify(R))}catch(e){}if(D===lf){try{renderAll()}catch(e){}}return}
+    if(!lf){R.farms[id]=Object.assign(JSON.parse(JS(rd)),{_shared:true});this.base[id]=farmData(rd);this.saveBase();return}
+    const local=farmData(lf),base=this.base[id]||null,merged=merge3(base,local,rd);
     this.base[id]=rd;this.saveBase();
     if(JS(merged)===JS(local))return;
     const keep={viewer:lf.viewer,_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(merged)),keep);
@@ -2200,8 +2223,8 @@ const Shared={base:{},subs:{},timer:null,started:false,pending:'',
   schedule(){if(!this.ok()||!this.started)return;clearTimeout(this.timer);this.timer=setTimeout(()=>this.pushAll(),1500)},
   dbg(){return {started:this.started,ok:this.ok(),base:Object.keys(this.base),timer:!!this.timer}},
   async pushAll(){for(const m of R.joined){const f=R.farms[m.farm];if(f&&f._shared)await this.push(f.id)}},
-  async push(id){const lf=R.farms[id];if(!lf||!this.ok())return;const local=farmData(lf),base=this.base[id];if(base&&JS(base)===JS(local))return;
-    try{let out;await Cloud.db.runTransaction(async tx=>{const s=await tx.get(this.fref(id));const rd=s.exists?JSON.parse(s.data().data):base||local;out=merge3(base||rd,local,rd);tx.update(this.fref(id),{data:JS(out),name:out.name||'',updatedAt:Date.now()})});
+  async push(id){const lf=R.farms[id];if(!lf||lf._stub||!this.ok())return;const local=farmData(lf),base=this.base[id];if(base&&JS(base)===JS(local))return;
+    try{let out;await Cloud.db.runTransaction(async tx=>{const s=await tx.get(this.fref(id));const rd=s.exists?JSON.parse(s.data().data):base||local;out=merge3(base||null,local,rd);tx.update(this.fref(id),{data:JS(out),name:out.name||'',updatedAt:Date.now()})});
       const prevCodes=(base&&base.fish||[]).map(f=>f.code);this.base[id]=JSON.parse(JS(out));this.saveBase();
       if(JS(out)!==JS(local)){const keep={viewer:lf.viewer,_shared:true,_owner:lf._owner};Object.keys(lf).forEach(k=>delete lf[k]);Object.assign(lf,JSON.parse(JS(out)),keep);if(D===lf)renderAll()}
       if(lf._owner===Cloud.user.uid)await this.syncCodes(lf,prevCodes)}catch(e){Cloud.syncError(e)}},
