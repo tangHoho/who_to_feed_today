@@ -625,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.13.7';
+const APP_VER='v1.13.8';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1542,7 +1542,7 @@ function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('l
       if(MK==='pill')mark=`<span class="pills">${ps.slice(0,2).map(p=>`<span class="pill" style="background:${p.color}">${esc(p.name.replace(/池$/,'').slice(0,2))}</span>`).join('')}${ps.length>2?`<span class="pill more">+${ps.length-2}</span>`:''}</span>`;
       if(MK==='fish')mark=`<span class="fishes">${ps.slice(0,3).map(p=>`<svg viewBox="0 0 20 12" width="19" height="11" aria-hidden="true"><path d="M3 6 L0 1 L0 11Z" fill="${p.color}"/><ellipse cx="11" cy="6" rx="8" ry="5" fill="${p.color}"/><circle cx="15" cy="5" r="1.3" fill="#fff"/></svg>`).join('')}</span>${ev.length>1?`<span class="cnt">${ev.length} 個約</span>`:''}`;
       if(MK==='fill'){st=`style="background:linear-gradient(135deg,${ps.map((p,k)=>`${hexA(p.color,.34)} ${k/ps.length*100}% ${(k+1)/ps.length*100}%`).join(',')});border-color:${ps[0].color}"`;mark=`<span class="cnt solid" style="background:${ps[0].color}">${ev.length}</span>`}}
-    html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${MK0==='pill'?`style="z-index:${100-d}"`:st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${MK0==='pill'&&wkMax[wk(d)]?`<span class="lanes" style="height:${wkMax[wk(d)]*19}px">${multi.filter(e=>onDay(e,ds)&&lane[e.id]<3).map(e=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',dow=new Date(calY,calM,d).getDay(),st=ds===e.date,en=ds===evEnd(e),showT=st||dow===0||d===1;
+    html+=`<button class="day mk-${MK} ${ds===TODAY?'today':''}" ${MK0==='pill'?`style="z-index:${100-d}"`:st} data-day="${ds}" aria-pressed="${ds===selDay}" aria-label="${fmtDate(ds)}，${ev.length} 個行程"><span class="n">${d}</span>${MK0==='pill'&&wkMax[wk(d)]?`<span class="lanes" style="height:${wkMax[wk(d)]*19}px">${multi.filter(e=>onDay(e,ds)&&lane[e.id]<3).map(e=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',dow=new Date(calY,calM,d).getDay(),st=ds===e.date,en=ds===evEnd(e),showT=st||(d===1&&e.date<mStart);
         const wkEnd=ymd(new Date(calY,calM,Math.min(days,d+6-dow))),stop=evEnd(e)<wkEnd?evEnd(e):wkEnd,n=Math.round((parseD(stop)-parseD(ds))/864e5)+1;
         return `<span class="lseg${st?' s':''}${en?' e':''}${!st&&(dow===0||d===1)?' ws':''}${!en&&(dow===6||d===days)?' we':''}" data-eid="${e.id}" data-wk="${wk(d)}" style="background:${c};top:${lane[e.id]*19}px">${showT?`<span class="t">${esc(evPondObjs(e).map(q=>q.name.replace(/池$/,'')).join('・'))}</span>`:''}</span>`}).join('')}</span>`:''}${mark}${MK0!=='pill'?ev.filter(isMulti).slice(0,2).map((e,k)=>{const c=evPondObjs(e)[0]?.color||'var(--koi)',pos=(ds===e.date?' s':'')+(ds===evEnd(e)?' e':'');return `<span class="trip${pos}" style="background:${c};bottom:${4+k*6}px"></span>`}).join(''):''}</button>`}
   {const tail=(7-(first.getDay()+days)%7)%7;for(let i=0;i<tail;i++)html+='<div class="day blank"></div>'}
