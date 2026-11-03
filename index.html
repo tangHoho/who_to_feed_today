@@ -305,6 +305,7 @@ textarea{resize:vertical;min-height:64px}
 .evt-range{font-size:12px;color:var(--muted);margin-top:2px}
 .day{aspect-ratio:auto;min-height:84px;padding-inline:2px;padding-top:8px;gap:5px;min-width:0;overflow:hidden;font-size:16px;border-radius:14px}
 .day.today .n{width:28px;height:28px;line-height:28px}
+.day .n{display:block;height:28px;line-height:28px;flex:none}
 #view-cal .grid{gap:3px;position:relative;z-index:0;isolation:isolate}
 #view-cal .wk{font-size:13px}
 @keyframes calInL{from{transform:translateX(40px);opacity:.2}to{transform:none;opacity:1}}@keyframes calInR{from{transform:translateX(-40px);opacity:.2}to{transform:none;opacity:1}}
@@ -625,7 +626,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.4';
+const APP_VER='v1.20.5';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
