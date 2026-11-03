@@ -307,6 +307,9 @@ textarea{resize:vertical;min-height:64px}
 .day.today .n{width:28px;height:28px;line-height:28px}
 #view-cal .grid{gap:3px;position:relative;z-index:0;isolation:isolate}
 #view-cal .wk{font-size:13px}
+@keyframes calInL{from{transform:translateX(40px);opacity:.2}to{transform:none;opacity:1}}@keyframes calInR{from{transform:translateX(-40px);opacity:.2}to{transform:none;opacity:1}}
+#calGrid.slide-l{animation:calInL .22s ease-out}#calGrid.slide-r{animation:calInR .22s ease-out}
+#calGrid{touch-action:pan-y}
 .lay-row{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px}
 /* 滿版（TimeTree 風）：左右貼齊螢幕、只有週與週之間的細線 */
 #view-cal.lay-full .wk,#view-cal.lay-full .grid,#view-cal.lay-lines .wk,#view-cal.lay-lines .grid{margin-inline:-16px}
@@ -622,7 +625,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.13.4';
+const APP_VER='v1.13.6';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1520,6 +1523,11 @@ function openCalStyle(){const LY=R.calLay||'full',MK=R.calMark||'pill';
     <h2 class="sec">約會標記</h2><div class="wgrid">${opt('calmark','pill','色條','池名色條，多天行程一整條',MK)}${opt('calmark','fish','小魚','池子顏色的小魚',MK)}${opt('calmark','fill','塗色','整格塗上池子顏色',MK)}${opt('calmark','dot','點點','簡單的小圓點',MK)}</div>`)}
 function fitSegText(){const g=$('calGrid');if(!g)return;g.querySelectorAll('.lseg .t').forEach(t=>{const sg=t.parentElement,segs=[...g.querySelectorAll(`.lseg[data-eid="${sg.dataset.eid}"][data-wk="${sg.dataset.wk}"]`)];if(!segs.length)return;const L=sg.getBoundingClientRect().left,R2=Math.max(...segs.map(x=>x.getBoundingClientRect().right));t.style.width=Math.max(10,R2-L-(sg.classList.contains('s')?10:8))+'px'})}
 window.addEventListener('resize',()=>{if(view==='cal')fitSegText()});
+function shiftMonth(dir){calM+=dir;if(calM<0){calM=11;calY--}if(calM>11){calM=0;calY++}renderCal();const g=$('calGrid');if(g&&!reduced){g.classList.remove('slide-l','slide-r');void g.offsetWidth;g.classList.add(dir>0?'slide-l':'slide-r')}}
+{let sw=null;const area=()=>$('view-cal');
+  document.addEventListener('touchstart',e=>{if(view!=='cal'||!$('scrim').hidden||e.touches.length!==1)return;const g=$('calGrid');if(!g||!g.contains(e.target)&&!e.target.closest('.wk'))return;sw={x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()}},{passive:true});
+  document.addEventListener('touchend',e=>{if(!sw)return;const t=e.changedTouches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y,dt=Date.now()-sw.t;sw=null;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6&&dt<700){shiftMonth(dx<0?1:-1);swipedAt=Date.now()}},{passive:true})}
+let swipedAt=0;
 function renderCal(){const LY=R.calLay||'full';$('view-cal').classList.remove('lay-full','lay-lines','lay-card');$('view-cal').classList.add('lay-'+LY);$('calLegend').innerHTML=D.ponds.map(p=>`<span><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</span>`).join('')+(isAdmin()?`<span><span class="dot" style="background:${PERSONAL.color}"></span>個人</span>`:'');
   $('calTitle').textContent=`${calY} 年 ${calM+1} 月`;
   const first=new Date(calY,calM,1),days=new Date(calY,calM+1,0).getDate();let html='';
@@ -1578,9 +1586,10 @@ function renderBoardOnly(){try{if(view==='pond')renderPond()}catch(e){}}
 function loadAvatarFile(file){if(!file||!/^image\//.test(file.type)){toast('請選一張圖片');return}const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const S=256,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),m=Math.min(img.width,img.height);x.fillStyle='#FFF4EC';x.fillRect(0,0,S,S);x.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);AP().avatar=c.toDataURL('image/jpeg',.85);save();document.querySelectorAll('.av-opt').forEach(o=>o.setAttribute('aria-pressed','false'));const up=document.querySelector('.av-up');if(up){up.setAttribute('aria-pressed','true');up.innerHTML=`<img src="${AP().avatar}" alt=""><input type="file" id="avFile" accept="image/*" hidden>`}refreshAdminAv();toast('頭像已更新')};img.onerror=()=>toast('這張圖讀不出來，換一張試試');img.src=rd.result};rd.readAsDataURL(file)}
 function saveAdmin(){const P=AP();const fn=$('aFarm').value.trim();if(fn)D.name=fn;P.nick=$('aNick').value.trim();P.bday=$('aBday').value.trim();P.intro=$('aIntro').value.trim();P.custom=[...document.querySelectorAll('#cfList .cf-row')].map(r=>({k:r.querySelector('.cf-k').value.trim(),v:r.querySelector('.cf-v').value.trim()})).filter(c=>c.k);save();renderViewer();openAdmin(false);toast('塘主資料已儲存')}
 function renderStats(){
-  const met=D.fish.filter(f=>f.meets>0),most=[...met].sort((a,b)=>b.meets-a.meets)[0],far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
-  const month=D.events.filter(e=>e.done&&!isPersonal(e)&&e.date.slice(0,7)===TODAY.slice(0,7)).length;
-  const next=D.events.filter(e=>e.date>=TODAY&&!e.done&&!isPersonal(e)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
+  const inP=e=>!isPersonal(e)&&evPonds(e).includes(pondSel),pf=fishIn(pondSel);
+  const met=pf.filter(f=>lastMet(f)),most=[...pf].filter(f=>f.meets>0).sort((a,b)=>b.meets-a.meets)[0],far=[...met].sort((a,b)=>daysSince(b)-daysSince(a))[0];
+  const month=D.events.filter(e=>e.done&&inP(e)&&e.date.slice(0,7)===TODAY.slice(0,7)).length;
+  const next=D.events.filter(e=>evEnd(e)>=TODAY&&!e.done&&inP(e)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
   $('dexStats').innerHTML=`<div class="stat"><div class="k">最常約</div><div class="v">${most?`${esc(most.name)} · ${most.meets} 次`:'-'}</div></div><div class="stat"><div class="k">最久沒見</div><div class="v">${far?`${esc(far.name)} · ${daysSince(far)} 天`:'-'}</div></div><div class="stat"><div class="k">本月已赴約</div><div class="v">${month} 場</div></div><div class="stat"><div class="k">下一個約</div><div class="v">${next?fmtDate(next.date):'-'}</div></div>`;
 }
 let pageIdx=0,bookPrev=null,flipping=false;
@@ -1846,7 +1855,7 @@ function completeEvent(id){
 
 /* ---------- events ---------- */
 document.addEventListener('click',ev=>{
-  const b=ev.target.closest('button,[data-day]');if(!b)return;const d=b.dataset;
+  const b=ev.target.closest('button,[data-day]');if(!b)return;if(Date.now()-swipedAt<350&&b.dataset.day)return;const d=b.dataset;
   if(d.tab){showView(d.tab);return}
   if(b.id==='panelToggle'){const o=$('pondPanel').classList.toggle('open');b.setAttribute('aria-expanded',o);if(o){markBoardSeen();const pl=$('panelLabel').querySelector('.unread-pill');if(pl)pl.remove()}return}
   if(b.id==='pgPrev'){flipTo(pageIdx-1);return}
@@ -1912,8 +1921,8 @@ document.addEventListener('click',ev=>{
   if(d.stk){postMsg('',d.stk);return}
   if(b.id==='msgSend'){const v=$('msgIn').value.trim();if(v)postMsg(v);return}
   if(d.day){selDay=d.day;renderCal();return}
-  if(b.id==='prevM'){calM--;if(calM<0){calM=11;calY--}renderCal();return}
-  if(b.id==='nextM'){calM++;if(calM>11){calM=0;calY++}renderCal();return}
+  if(b.id==='prevM'){shiftMonth(-1);return}
+  if(b.id==='nextM'){shiftMonth(1);return}
   if(b.id==='addEvt'){openEventForm();return}
   if(d.edit){openEventForm(d.edit);return}
   if(d.done){completeEvent(d.done);return}
