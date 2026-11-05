@@ -626,7 +626,7 @@ Object.values(R.farms).forEach(fm=>fm.fish.forEach(f=>{if(f.acc==='scarf'){f.acc
 if(R.cur&&!R.farms[R.cur.farm])R.cur=null;
 let D=R.cur?R.farms[R.cur.farm]:(R.farms[R.joined[0]?.farm]||blankFarm());
 if(R.cur)D.viewer=R.cur.viewer;
-const APP_VER='v1.20.7';
+const APP_VER='v1.20.8';
 const bodyOf=x=>JSON.stringify(Object.assign({},x,{updatedAt:0,syncUid:0}));let lastBody=bodyOf(R);
 const BKEY='feedwho-backups';
 function getBackups(){try{return JSON.parse(localStorage.getItem(BKEY))||[]}catch(e){return[]}}
@@ -1927,7 +1927,7 @@ document.addEventListener('click',ev=>{
   if(d.fish){openFish(d.fish);return}
   if(d.stk){postMsg('',d.stk);return}
   if(b.id==='msgSend'){const v=$('msgIn').value.trim();if(v)postMsg(v);return}
-  if(d.day){selDay=d.day;renderCal();return}
+  if(d.day){selDay=d.day;renderCal();if(EVS().some(e=>onDay(e,selDay))){const t=$('agendaTitle');if(t)setTimeout(()=>{t.style.scrollMarginTop='12px';t.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'})},60)}return}
   if(b.id==='prevM'){shiftMonth(-1);return}
   if(b.id==='nextM'){shiftMonth(1);return}
   if(b.id==='addEvt'){openEventForm();return}
